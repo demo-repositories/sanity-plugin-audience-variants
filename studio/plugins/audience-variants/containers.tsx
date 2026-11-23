@@ -82,7 +82,7 @@ export const audienceVariantContainers = [
   }),
 ]
 
-const DEFAULT_LABEL = 'All other audiences'
+const DEFAULT_LABEL = 'Default Audience'
 
 /**
  * Sanity sizes containers to the body-text column, so nested text already
@@ -229,14 +229,17 @@ function VariationContainer({attributes, children, node, readOnly}: ContainerRen
         }}
       />
       <VariationActiveContext.Provider value={context}>
-        {editing && <VariationActions value={value} />}
         <Stack gap={2}>{children}</Stack>
       </VariationActiveContext.Provider>
     </div>
   )
 }
 
-/** Floating action bar over the top-right corner; takes no layout space. */
+/**
+ * Action bar at the right end of the top section's label line. It stays
+ * inside the variation because Sanity clips the editable area, so anything
+ * drawn above the first block gets cut off.
+ */
 function VariationActions({value}: {value: VariationValue}) {
   const editor = useEditor()
   const [confirmingUnwrap, setConfirmingUnwrap] = useState(false)
@@ -244,66 +247,60 @@ function VariationActions({value}: {value: VariationValue}) {
   const variantCount = variantSections(value).length
 
   return (
-    <Chrome style={{position: 'absolute', top: -22, right: -4, zIndex: 2}}>
-      <Card radius={2} shadow={1} padding={1}>
-        <Flex gap={1}>
-          <Button
+    <Box style={{marginLeft: 'auto'}}>
+      <Flex gap={1}>
+        <TintButton
+          icon={AddIcon}
+          fontSize={1}
+          padding={1}
+          text="Variant"
+          onClick={() => {
+            editor.send({type: ADD_SECTION_EVENT, key: value._key, kind: 'variant'})
+            editor.send({type: 'focus'})
+          }}
+        />
+        {!hasDefault && (
+          <TintButton
             icon={AddIcon}
-            mode="bleed"
             fontSize={1}
-            padding={2}
-            text="Variant"
+            padding={1}
+            text={DEFAULT_LABEL}
+            title="Add content for audiences no variant targets"
             onClick={() => {
-              editor.send({type: ADD_SECTION_EVENT, key: value._key, kind: 'variant'})
+              editor.send({type: ADD_SECTION_EVENT, key: value._key, kind: 'default'})
               editor.send({type: 'focus'})
             }}
           />
-          {!hasDefault && (
-            <Button
-              icon={AddIcon}
-              mode="bleed"
+        )}
+        {confirmingUnwrap ? (
+          <>
+            <TintButton
               fontSize={1}
-              padding={2}
-              text={DEFAULT_LABEL}
-              title="Add content for audiences no variant targets"
-              onClick={() => {
-                editor.send({type: ADD_SECTION_EVENT, key: value._key, kind: 'default'})
-                editor.send({type: 'focus'})
-              }}
+              padding={1}
+              text="Cancel"
+              onClick={() => setConfirmingUnwrap(false)}
             />
-          )}
-          {confirmingUnwrap ? (
-            <>
-              <Button
-                mode="bleed"
-                fontSize={1}
-                padding={2}
-                text="Cancel"
-                onClick={() => setConfirmingUnwrap(false)}
-              />
-              <Button
-                icon={UnlinkIcon}
-                tone="critical"
-                fontSize={1}
-                padding={2}
-                text={unwrapLabel(hasDefault, variantCount)}
-                onClick={() => editor.send({type: UNWRAP_EVENT, key: value._key})}
-              />
-            </>
-          ) : (
             <Button
               icon={UnlinkIcon}
-              mode="bleed"
+              tone="critical"
               fontSize={1}
-              padding={2}
-              text="Unwrap"
-              title="Turn back into normal text"
-              onClick={() => setConfirmingUnwrap(true)}
+              padding={1}
+              text={unwrapLabel(hasDefault, variantCount)}
+              onClick={() => editor.send({type: UNWRAP_EVENT, key: value._key})}
             />
-          )}
-        </Flex>
-      </Card>
-    </Chrome>
+          </>
+        ) : (
+          <TintButton
+            icon={UnlinkIcon}
+            fontSize={1}
+            padding={1}
+            text="Unwrap"
+            title="Turn back into normal text"
+            onClick={() => setConfirmingUnwrap(true)}
+          />
+        )}
+      </Flex>
+    </Box>
   )
 }
 
@@ -332,6 +329,11 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   const {regions: allRegions, audiences: allAudiences} = useAudienceConfig()
 
   const isDefault = isDefaultSection(section)
+  // The variation's actions go on the first label line shown: the first
+  // variant, or the default when there are none (it always shows last).
+  const isTopSection =
+    variation !== undefined &&
+    (variantSections(variation)[0] ?? getDefaultSection(variation))?._key === section._key
   const regions = isDefault ? [] : (section.regions ?? [])
   const audiences = isDefault ? [] : (section.audiences ?? [])
 
@@ -434,6 +436,9 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
           )}
           {!readOnly && active && variation && (
             <SectionMenu variation={variation} section={section} />
+          )}
+          {!readOnly && active && isTopSection && variation && (
+            <VariationActions value={variation} />
           )}
         </Flex>
       </Chrome>
