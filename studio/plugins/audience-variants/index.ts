@@ -9,6 +9,7 @@ export {VARIATION_TYPE, VARIANT_TYPE, DEFAULT_TYPE, AUDIENCE_TYPE} from './const
 export {
   resolveAudienceConfig,
   type AudienceVariantsConfig,
+  type AudienceContentConfig,
   type AudienceDimensionValue,
   type Reader,
 } from './config'

@@ -14,3 +14,13 @@ export function AudienceVariantsPlugins(props: PortableTextPluginsProps) {
     </>
   )
 }
+
+/** Same, with Sanity's opt-in table plugin turned on (`tables: true` on the field). */
+export function AudienceVariantsPluginsWithTables(props: PortableTextPluginsProps) {
+  return (
+    <>
+      {props.renderDefault({...props, plugins: {...props.plugins, table: {enabled: true}}})}
+      <AudienceVariantsPlugin />
+    </>
+  )
+}

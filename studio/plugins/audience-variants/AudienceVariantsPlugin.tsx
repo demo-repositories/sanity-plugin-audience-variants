@@ -2,11 +2,12 @@ import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
 import {Button, Card, Flex, Text} from '@sanity/ui'
-import {useEffect} from 'react'
-import {audienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
+import {useEffect, useMemo} from 'react'
+import {createAudienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
 import {REPAIR_EVENT} from './constants'
 import {AudienceSelect, Muted} from './AudienceSelect'
 import {audienceVariantContainers} from './containers'
+import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
 
 /**
@@ -49,10 +50,15 @@ export function AudienceVariantsPlugin() {
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
   useRepairVariations(editor)
+  const {sectionObjectTypes} = useAudienceConfig()
+  const behaviors = useMemo(
+    () => createAudienceVariantBehaviors({objectTypes: sectionObjectTypes}),
+    [sectionObjectTypes],
+  )
 
   return (
     <>
-      <BehaviorPlugin behaviors={audienceVariantBehaviors} />
+      <BehaviorPlugin behaviors={behaviors} />
       <NodePlugin nodes={audienceVariantContainers} />
       <Card
         padding={1}

@@ -1,3 +1,5 @@
+import type {BlockDefinition, defineArrayMember} from 'sanity'
+
 /**
  * Audience configuration.
  *
@@ -16,9 +18,23 @@ export type AudienceDimensionValue = {
   shortTitle?: string
 }
 
+type ArrayMember = ReturnType<typeof defineArrayMember>
+
+/**
+ * What can go inside a variant or default section. Text blocks are always
+ * allowed; `block` customises them (styles, lists, annotations) and `of` adds
+ * other types (images, tables, embeds) the Studio schema declares. Pass the
+ * same values to `defineAudienceVariantsField` so the top level allows them too.
+ */
+export type AudienceContentConfig = {
+  block?: Omit<BlockDefinition, 'type' | 'name'>
+  of?: ArrayMember[]
+}
+
 export type AudienceVariantsConfig = {
   regions: AudienceDimensionValue[]
   audiences: AudienceDimensionValue[]
+  content?: AudienceContentConfig
 }
 
 /** Who is reading: one region and one audience type. */
@@ -27,6 +43,9 @@ export type Reader = {region: string; audience: string}
 export type ResolvedAudienceConfig = {
   regions: AudienceDimensionValue[]
   audiences: AudienceDimensionValue[]
+  content: AudienceContentConfig
+  /** `_type`s of the non-text members allowed in a section (from `content.of`). */
+  sectionObjectTypes: ReadonlySet<string>
   regionTitle: (id: string) => string
   audienceTitle: (id: string) => string
   /** Compact label for a selection: "All regions", or short titles joined. */
@@ -53,9 +72,13 @@ export function resolveAudienceConfig(config: AudienceVariantsConfig): ResolvedA
   const regions = lookup(config.regions)
   const audiences = lookup(config.audiences)
 
+  const content = config.content ?? {}
+
   return {
     regions: config.regions,
     audiences: config.audiences,
+    content,
+    sectionObjectTypes: new Set((content.of ?? []).map((m) => m.name ?? m.type)),
     regionTitle: regions.title,
     audienceTitle: audiences.title,
     summarizeRegions: (ids) => regions.summarize(ids, 'All regions'),

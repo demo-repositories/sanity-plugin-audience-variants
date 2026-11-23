@@ -1,12 +1,26 @@
 import {UsersIcon} from '@sanity/icons/Users'
 import {defineArrayMember, defineField, defineType} from 'sanity'
-import type {Reader, ResolvedAudienceConfig} from './config'
+import type {AudienceContentConfig, Reader, ResolvedAudienceConfig} from './config'
 import {AudienceFieldComponent, AudienceInput} from './AudienceInput'
 import {AUDIENCE_TYPE, DEFAULT_TYPE, VARIANT_TYPE, VARIATION_TYPE} from './constants'
 import {audienceLabel, overlappingReaders, readerKey, type Section} from './resolve'
 
-/** Nested content: plain text blocks only, so variations can't nest. */
-const nestedContent = [defineArrayMember({type: 'block'})]
+const PLUGIN_TYPES: string[] = [VARIATION_TYPE, VARIANT_TYPE, DEFAULT_TYPE, AUDIENCE_TYPE]
+
+/**
+ * Section content: text blocks plus whatever `content.of` injects. The
+ * plugin's own types are refused so variations can't nest: nesting would
+ * make reader resolution ambiguous and multiply the dataset's attributes.
+ */
+function sectionContent({block, of = []}: AudienceContentConfig) {
+  const nested = of.find((m) => PLUGIN_TYPES.includes(m.name ?? m.type))
+  if (nested) {
+    throw new Error(
+      `audience-variants: \`content.of\` can't include \`${nested.name ?? nested.type}\`; variations can't nest.`,
+    )
+  }
+  return [defineArrayMember({...block, type: 'block'}), ...of]
+}
 
 /**
  * Builds the plugin's object types for a given audience config.
@@ -22,10 +36,13 @@ const nestedContent = [defineArrayMember({type: 'block'})]
 export function createSchemaTypes({
   regions,
   audiences,
+  content,
   summarizeRegions,
   summarizeAudiences,
   readerTitle,
 }: ResolvedAudienceConfig) {
+  const nestedContent = sectionContent(content)
+
   const audienceDefault = defineType({
     name: DEFAULT_TYPE,
     title: 'Default',

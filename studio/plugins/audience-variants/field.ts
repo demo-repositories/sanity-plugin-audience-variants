@@ -7,7 +7,7 @@ import {
   type ObjectDefinition,
 } from 'sanity'
 import {AUDIENCE_TYPE, VARIATION_TYPE} from './constants'
-import {AudienceVariantsPlugins} from './PortableTextPlugins'
+import {AudienceVariantsPlugins, AudienceVariantsPluginsWithTables} from './PortableTextPlugins'
 
 type ArrayMember = ReturnType<typeof defineArrayMember>
 
@@ -20,6 +20,11 @@ export type AudienceVariantsFieldOptions = Omit<ArrayDefinition, 'type' | 'of' |
     block?: Omit<BlockDefinition, 'type' | 'name'>
     /** Extra array members (images, other block objects) alongside text and variations. */
     of?: ArrayMember[]
+    /**
+     * Turn on Sanity's table editing. The schema must declare a `table` type
+     * (table > rows > row > cells > cell > value) and `of` must include it.
+     */
+    tables?: boolean
   }
 
 /**
@@ -33,6 +38,7 @@ export type AudienceVariantsFieldOptions = Omit<ArrayDefinition, 'type' | 'of' |
 export function defineAudienceVariantsField({
   block,
   of = [],
+  tables = false,
   ...field
 }: AudienceVariantsFieldOptions) {
   return defineField({
@@ -43,7 +49,9 @@ export function defineAudienceVariantsField({
       defineArrayMember({type: VARIATION_TYPE}),
       ...of,
     ],
-    components: {portableText: {plugins: AudienceVariantsPlugins}},
+    components: {
+      portableText: {plugins: tables ? AudienceVariantsPluginsWithTables : AudienceVariantsPlugins},
+    },
   })
 }
 
