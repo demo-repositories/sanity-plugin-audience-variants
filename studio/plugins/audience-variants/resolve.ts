@@ -49,3 +49,8 @@ export function overlappingAudiences(value: VariationValue): Set<string> {
   }
   return overlaps
 }
+
+/** Variant sections, i.e. everything but the default. */
+export function variantSections(value: VariationValue) {
+  return (value.variants ?? []).filter((s) => !isDefaultSection(s))
+}

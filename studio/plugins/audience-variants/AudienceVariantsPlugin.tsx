@@ -1,11 +1,11 @@
-import {useEditor, useEditorSelector} from '@portabletext/editor'
+import {useEditor} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
 import {UsersIcon} from '@sanity/icons/Users'
-import {Button, Card, Flex, Select, Text} from '@sanity/ui'
-import {audienceVariantBehaviors, getWrappableBlocks, wrapShortcut} from './behaviors'
+import {Card, Flex, Select, Text} from '@sanity/ui'
+import {useEffect} from 'react'
+import {audienceVariantBehaviors, wrapShortcut} from './behaviors'
 import {audienceVariantContainers} from './containers'
-import {WRAP_EVENT} from './constants'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
 
@@ -13,14 +13,30 @@ const EDITING = ''
 
 /**
  * Portable Text Editor plugin: registers the behaviors and inline-editing
- * containers, and renders a bar with the "Wrap in audience variation" action and an editor-wide
- * "Preview as" audience switch.
+ * containers, and renders a bar with a wrap hint and an editor-wide "Preview as" audience
+ * switch.
  */
+/**
+ * Previewing is read-only: lock the editor while a preview audience is set,
+ * and on leaving restore whatever read-only state it had before (it may be
+ * read-only for other reasons, e.g. permissions).
+ */
+function usePreviewReadOnly(editor: ReturnType<typeof useEditor>, previewing: boolean) {
+  useEffect(() => {
+    if (!previewing) return undefined
+    const wasReadOnly = editor.getSnapshot().context.readOnly
+    if (!wasReadOnly) editor.send({type: 'update readOnly', readOnly: true})
+    return () => {
+      if (!wasReadOnly) editor.send({type: 'update readOnly', readOnly: false})
+    }
+  }, [editor, previewing])
+}
+
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
   const {audiences} = useAudienceConfig()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
-  const canWrap = useEditorSelector(editor, (snapshot) => getWrappableBlocks(snapshot) !== null)
+  usePreviewReadOnly(editor, previewAudience !== null)
 
   return (
     <>
@@ -33,20 +49,21 @@ export function AudienceVariantsPlugin() {
         style={{transition: 'background-color 120ms'}}
       >
         <Flex align="center" gap={2} wrap="wrap">
-          <Button
-            icon={UsersIcon}
-            mode="ghost"
-            fontSize={1}
-            padding={2}
-            text="Wrap in audience variation"
-            disabled={!canWrap}
-            // Keep editor focus/selection while clicking.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.send({type: WRAP_EVENT})}
-          />
-          <Text size={0} muted>
-            {wrapShortcut.keys.map((k) => k.replace(/^Key/, '')).join(' + ')}
-          </Text>
+          {previewAudience ? (
+            <Text size={1} style={{paddingLeft: 4}}>
+              Read-only preview — switch back to edit
+            </Text>
+          ) : (
+            <>
+              <Text size={1} muted style={{paddingLeft: 4}}>
+                <UsersIcon />
+              </Text>
+              <Text size={0} muted>
+                Wrap selection: toolbar or{' '}
+                {wrapShortcut.keys.map((k) => k.replace(/^Key/, '')).join(' + ')}
+              </Text>
+            </>
+          )}
 
           <Flex align="center" gap={2} style={{marginLeft: 'auto'}}>
             <Text size={1} muted>

@@ -1,6 +1,6 @@
 import type {EditorSnapshot, Path, PortableTextBlock} from '@portabletext/editor'
 import {defineBehavior, raise} from '@portabletext/editor/behaviors'
-import {getSelectedBlocks} from '@portabletext/editor/selectors'
+import {getSelectedBlocks, isSelectionCollapsed} from '@portabletext/editor/selectors'
 import {createKeyboardShortcut} from '@portabletext/keyboard-shortcuts'
 import {
   ADD_SECTION_EVENT,
@@ -112,6 +112,24 @@ const wrapOnShortcut = defineBehavior({
  * A variation inserted empty (e.g. from the toolbar's insert menu) gets a
  * default section with one empty paragraph, so there is somewhere to type.
  */
+/**
+ * The toolbar's "Audience variation" insert button wraps the selected text
+ * instead of inserting an empty variation, so it does the same as the
+ * shortcut. With a caret only, it inserts as before.
+ */
+const insertWrapsSelection = defineBehavior({
+  on: 'insert.block',
+  guard: ({snapshot, event}) => {
+    if (event.block._type !== VARIATION_TYPE) return false
+    const variants = (event.block as Partial<VariationValue>).variants
+    if (Array.isArray(variants) && variants.length > 0) return false
+    const selection = snapshot.context.selection
+    if (!selection || isSelectionCollapsed(snapshot)) return false
+    return getWrappableBlocks(snapshot) !== null
+  },
+  actions: [() => [raise({type: WRAP_EVENT})]],
+})
+
 const scaffoldInsertedVariation = defineBehavior({
   on: 'insert.block',
   guard: ({event}) => {
@@ -163,31 +181,79 @@ const unwrapVariation = defineBehavior({
   ],
 })
 
-/** Add a default (first) or variant (last) section to a variation. */
+type TextBlock = PortableTextBlock & {
+  children?: (Keyed & {marks?: string[]})[]
+  markDefs?: Keyed[]
+}
+
+/**
+ * Deep-copy blocks with fresh keys (blocks, spans and annotation defs, with
+ * span marks remapped to the new def keys) so the copy can live in another
+ * section without key collisions.
+ */
+function cloneBlocks(snapshot: EditorSnapshot, blocks: PortableTextBlock[]): PortableTextBlock[] {
+  const key = () => snapshot.context.keyGenerator()
+  return (blocks as TextBlock[]).map((block) => {
+    const defKeys = new Map((block.markDefs ?? []).map((d) => [d._key, key()]))
+    return {
+      ...block,
+      _key: key(),
+      ...(block.markDefs && {
+        markDefs: block.markDefs.map((d) => ({...d, _key: defKeys.get(d._key)!})),
+      }),
+      ...(block.children && {
+        children: block.children.map((child) => ({
+          ...child,
+          _key: key(),
+          ...(child.marks && {marks: child.marks.map((m) => defKeys.get(m) ?? m)}),
+        })),
+      }),
+    }
+  })
+}
+
+/**
+ * Add a default or variant section to a variation. Order is variants first,
+ * default last, so the block reads "these audiences get X, everyone else Y".
+ * `copyFrom` seeds the new section with another section's content.
+ */
 const addSection = defineBehavior({
   on: ADD_SECTION_EVENT,
   guard: ({snapshot, event}) => {
-    const {key, kind} = event as {key?: string; kind?: 'default' | 'variant'}
+    const {key, kind, copyFrom} = event as {
+      key?: string
+      kind?: 'default' | 'variant'
+      copyFrom?: string
+    }
     const block = findVariation(snapshot, key ?? '')
     if (!block || !kind) return false
     if (kind === 'default' && getDefaultSection(block)) return false
-    return {block, kind, section: newSection(snapshot, kind)}
+    const source = copyFrom ? block.variants?.find((s) => s._key === copyFrom) : undefined
+    const section = newSection(snapshot, kind)
+    if (source?.content?.length) section.content = cloneBlocks(snapshot, source.content)
+    return {block, kind, section}
   },
   actions: [
     (_, {block, kind, section}) => {
       const variationPath: Path = [{_key: block._key}]
       const sections = block.variants ?? []
       const sectionPath: Path = [...variationPath, 'variants', {_key: section._key}]
-      const insert = sections.length
+      // Variants go after the last variant (or before the default if there are
+      // none yet); a default goes at the end.
+      const lastVariant = sections.filter((s) => !isDefaultSection(s)).at(-1)
+      const fallback = getDefaultSection(block)
+      const [anchor, position] =
+        kind === 'variant' && lastVariant
+          ? [lastVariant, 'after' as const]
+          : kind === 'variant' && fallback
+            ? [fallback, 'before' as const]
+            : [sections.at(-1), 'after' as const]
+      const insert = anchor
         ? raise({
             type: 'insert',
-            at: [
-              ...variationPath,
-              'variants',
-              {_key: (kind === 'default' ? sections[0] : sections[sections.length - 1])._key},
-            ],
+            at: [...variationPath, 'variants', {_key: anchor._key}],
             value: section,
-            position: kind === 'default' ? 'before' : 'after',
+            position,
           })
         : raise({type: 'set', at: [...variationPath, 'variants'], value: [section]})
       return [insert, ...selectStartOf(sectionPath, section)]
@@ -237,6 +303,7 @@ const setAudiences = defineBehavior({
 export const audienceVariantBehaviors = [
   wrapSelection,
   wrapOnShortcut,
+  insertWrapsSelection,
   scaffoldInsertedVariation,
   unwrapVariation,
   addSection,
