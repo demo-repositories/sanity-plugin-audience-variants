@@ -4,6 +4,7 @@ import {getSelectedBlocks, isSelectionCollapsed} from '@portabletext/editor/sele
 import {createKeyboardShortcut} from '@portabletext/keyboard-shortcuts'
 import {
   ADD_SECTION_EVENT,
+  CONVERT_SECTION_EVENT,
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
   REPAIR_EVENT,
@@ -282,6 +283,51 @@ const removeSection = defineBehavior({
   ],
 })
 
+/**
+ * Swap a section between default and variant, keeping its key and content.
+ * Picking an audience on the default sends this with `field`/`ids`, so the
+ * default becomes a variant targeting them; readers no variant targets then
+ * see nothing. A variant can only become the default when there isn't one.
+ *
+ * The whole `variants` array is set in one go: the section keeps its key, so
+ * the caret and an open picker stay put.
+ */
+const convertSection = defineBehavior({
+  on: CONVERT_SECTION_EVENT,
+  guard: ({snapshot, event}) => {
+    const {key, sectionKey, field, ids} = event as {
+      key?: string
+      sectionKey?: string
+      field?: 'regions' | 'audiences'
+      ids?: string[]
+    }
+    const block = findVariation(snapshot, key ?? '')
+    const section = block?.variants?.find((s) => s._key === sectionKey)
+    if (!block || !section) return false
+    const toDefault = !isDefaultSection(section)
+    if (toDefault && getDefaultSection(block)) return false
+    const content = section.content?.length
+      ? section.content
+      : newSection(snapshot, 'default').content
+    const replacement: Section = toDefault
+      ? {_type: DEFAULT_TYPE, _key: section._key, content}
+      : {
+          _type: VARIANT_TYPE,
+          _key: section._key,
+          regions: field === 'regions' ? (ids ?? []) : [],
+          audiences: field === 'audiences' ? (ids ?? []) : [],
+          content,
+        }
+    // Keep the convention: variants first, the default last.
+    const rest = (block.variants ?? []).filter((s) => s._key !== section._key)
+    const variants = toDefault
+      ? [...rest, replacement]
+      : [...rest.filter((s) => !isDefaultSection(s)), replacement]
+    return {at: [{_key: block._key}, 'variants'] as Path, variants}
+  },
+  actions: [(_, {at, variants}) => [raise({type: 'set', at, value: variants})]],
+})
+
 /** Set a variant's `regions` or `audiences` (the picker sends the whole list). */
 const setTargeting = defineBehavior({
   on: SET_TARGETING_EVENT,
@@ -440,5 +486,6 @@ export const audienceVariantBehaviors = [
   unwrapVariation,
   addSection,
   removeSection,
+  convertSection,
   setTargeting,
 ]

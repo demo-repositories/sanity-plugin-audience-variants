@@ -9,6 +9,7 @@ import {AddIcon} from '@sanity/icons/Add'
 import {CopyIcon} from '@sanity/icons/Copy'
 import {EllipsisHorizontalIcon} from '@sanity/icons/EllipsisHorizontal'
 import {TrashIcon} from '@sanity/icons/Trash'
+import {EarthGlobeIcon} from '@sanity/icons/EarthGlobe'
 import {UnlinkIcon} from '@sanity/icons/Unlink'
 import {Box, Button, Card, Checkbox, Flex, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
 import {Menu, MenuButton, MenuItem} from '@sanity/ui/menu'
@@ -24,9 +25,11 @@ import {
   useId,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import {
   ADD_SECTION_EVENT,
+  CONVERT_SECTION_EVENT,
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
   SET_TARGETING_EVENT,
@@ -320,6 +323,40 @@ function useParentVariation(editor: Editor, path: ContainerRenderProps['path']) 
 
 type Field = 'regions' | 'audiences'
 
+/**
+ * Which section's picker is open, per editor. Kept outside the picker so it
+ * stays open when picking on the default turns that section into a variant
+ * (same key, but the section re-mounts as a different container type).
+ */
+type PickerStore = {key: string | null; listeners: Set<() => void>}
+const pickerStores = new WeakMap<Editor, PickerStore>()
+
+function useOpenPicker(editor: Editor, sectionKey: string): [boolean, (open: boolean) => void] {
+  let store = pickerStores.get(editor)
+  if (!store) {
+    store = {key: null, listeners: new Set()}
+    pickerStores.set(editor, store)
+  }
+  const s = store
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      s.listeners.add(listener)
+      return () => s.listeners.delete(listener)
+    },
+    [s],
+  )
+  const open = useSyncExternalStore(subscribe, () => s.key === sectionKey)
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!next && s.key !== sectionKey) return
+      s.key = next ? sectionKey : null
+      s.listeners.forEach((l) => l())
+    },
+    [s, sectionKey],
+  )
+  return [open, setOpen]
+}
+
 function SectionContainer({attributes, children, node, path, readOnly}: ContainerRenderProps) {
   const section = node as unknown as Section
   const editor = useEditor()
@@ -414,20 +451,24 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
       <Rail color={isDefault ? color.border : color.variantRail} />
       <Chrome style={{paddingTop: 2}}>
         <Flex align="center" gap={1} style={{minHeight: 25}}>
-          {!readOnly && !isDefault && variation ? (
+          {!readOnly && variation ? (
             <AudiencePicker
+              sectionKey={section._key}
+              isDefault={isDefault}
               regions={regions}
               audiences={audiences}
               others={others}
-              onChange={(field, ids) =>
+              onChange={(field, ids) => {
+                // Picking on the default turns it into a variant for that pick.
+                if (isDefault && !ids.length) return
                 editor.send({
-                  type: SET_TARGETING_EVENT,
+                  type: isDefault ? CONVERT_SECTION_EVENT : SET_TARGETING_EVENT,
                   key: variation._key,
                   sectionKey: section._key,
                   field,
                   ids,
                 })
-              }
+              }}
             >
               {label}
             </AudiencePicker>
@@ -553,6 +594,22 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
               editor.send({type: 'focus'})
             }}
           />
+          {!isDefault && !getDefaultSection(variation) && (
+            <MenuItem
+              icon={EarthGlobeIcon}
+              fontSize={1}
+              text={`Use as “${DEFAULT_LABEL}”`}
+              title="Show this to every reader no other variant targets"
+              onClick={() => {
+                editor.send({
+                  type: CONVERT_SECTION_EVENT,
+                  key: variation._key,
+                  sectionKey: section._key,
+                })
+                editor.send({type: 'focus'})
+              }}
+            />
+          )}
           <MenuItem
             icon={TrashIcon}
             tone="critical"
@@ -580,12 +637,16 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
  */
 function AudiencePicker({
   children,
+  sectionKey,
+  isDefault,
   regions,
   audiences,
   others,
   onChange,
 }: {
   children: ReactNode
+  sectionKey: string
+  isDefault: boolean
   regions: string[]
   audiences: string[]
   others: VariantSection[]
@@ -593,7 +654,7 @@ function AudiencePicker({
 }) {
   const config = useAudienceConfig()
   const {hold} = useContext(VariationActiveContext)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenPicker(useEditor(), sectionKey)
   const [button, setButton] = useState<HTMLElement | null>(null)
   const [popover, setPopover] = useState<HTMLElement | null>(null)
   const [hover, setHover] = useState(false)
@@ -611,7 +672,7 @@ function AudiencePicker({
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, setOpen])
 
   const selected = {regions, audiences}
   const otherField = (field: Field): Field => (field === 'regions' ? 'audiences' : 'regions')
@@ -690,8 +751,9 @@ function AudiencePicker({
         <Card padding={3} radius={2} style={{maxWidth: 360}}>
           <Stack gap={4}>
             <Text size={1} muted>
-              Show this audience variant to readers in any of these regions who are in any of these
-              audiences.
+              {isDefault
+                ? 'Pick regions and audiences to show this only to them. Readers no variant targets will see nothing here.'
+                : 'Show this audience variant to readers in any of these regions who are in any of these audiences.'}
             </Text>
             {group('regions', 'Regions', config.regions)}
             {group('audiences', 'Audiences', config.audiences)}
