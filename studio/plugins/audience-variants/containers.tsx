@@ -43,7 +43,8 @@ import {
   overlappingReaders,
   readerKey,
   readersOf,
-  resolveVariation,
+  isExactFilter,
+  previewSectionKeys,
   type Section,
   type VariantSection,
   variantSections,
@@ -180,19 +181,24 @@ function VariationContainer({attributes, children, node, readOnly}: ContainerRen
   const value = node as unknown as VariationValue
   const editor = useEditor()
   const [previewAudience] = usePreviewAudience(editor)
+  const {regions: allRegions, audiences: allAudiences} = useAudienceConfig()
   const {active, context, setHovered} = useVariationActive(editor, value._key)
   const editing = active && !readOnly
 
-  // Preview: plain content only, exactly what this audience reads. Nothing
-  // at all if no section applies to them.
+  // Preview: plain content only, what the matching readers see. Nothing at
+  // all if no section applies to any of them.
   if (previewAudience) {
+    const visible = previewSectionKeys(
+      value,
+      previewAudience,
+      allRegions.map((r) => r.id),
+      allAudiences.map((a) => a.id),
+    )
     return (
-      <div
-        {...attributes}
-        style={{display: resolveVariation(value, previewAudience) ? undefined : 'none'}}
-      >
+      <div {...attributes} style={{display: visible.size ? undefined : 'none'}}>
         <VariationActiveContext.Provider value={context}>
-          {children}
+          {/* Grid, so the default's `order` keeps it last when several show. */}
+          <Stack gap={visible.size > 1 ? 3 : 0}>{children}</Stack>
         </VariationActiveContext.Provider>
       </div>
     )
@@ -347,11 +353,38 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
     )
   }, [isDefault, variation, allRegions, allAudiences])
 
-  // Preview: show only the section this reader gets, without chrome.
+  // Preview: show only the sections the matching readers get, without
+  // chrome. When only region or only audience is picked, several sections
+  // can apply, so each gets a small label saying who it's for.
   if (previewAudience) {
-    const resolved = variation ? resolveVariation(variation, previewAudience) : undefined
+    const visible = variation
+      ? previewSectionKeys(
+          variation,
+          previewAudience,
+          allRegions.map((r) => r.id),
+          allAudiences.map((a) => a.id),
+        )
+      : new Set<string>()
+    const showLabel = !isExactFilter(previewAudience) && visible.size > 1
     return (
-      <div {...attributes} style={{display: resolved?._key === section._key ? undefined : 'none'}}>
+      <div
+        {...attributes}
+        style={{
+          display: visible.has(section._key) ? undefined : 'none',
+          order: isDefault ? 1 : 0,
+        }}
+      >
+        {showLabel && (
+          <Chrome style={{paddingTop: 4}}>
+            <SectionLabel
+              isDefault={isDefault}
+              regions={regions}
+              audiences={audiences}
+              overlaps={[]}
+              fallbackUnreachable={false}
+            />
+          </Chrome>
+        )}
         {children}
       </div>
     )

@@ -10,6 +10,8 @@ export {
 export {
   resolveVariation,
   variantMatches,
+  previewSectionKeys,
+  type PreviewFilter,
   type VariationValue,
   type Section,
   type VariantSection,

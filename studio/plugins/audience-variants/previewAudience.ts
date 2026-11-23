@@ -1,6 +1,6 @@
 import type {Editor} from '@portabletext/editor'
 import {useCallback, useSyncExternalStore} from 'react'
-import type {Reader} from './config'
+import type {PreviewFilter} from './resolve'
 
 /**
  * "Preview as audience" state, shared between the plugin toolbar and every
@@ -11,9 +11,10 @@ import type {Reader} from './config'
  * store per editor instance (both sides get the same instance from
  * `useEditor()`), which also keeps separate PT fields on a page independent.
  *
- * `null` means "editing": no preview, blocks show their own tabs.
+ * `null` means "editing": no preview, blocks show their own tabs. Otherwise
+ * at least one of region / audience is set; an unset one means "any".
  */
-type Store = {value: Reader | null; listeners: Set<() => void>}
+type Store = {value: PreviewFilter | null; listeners: Set<() => void>}
 
 const stores = new WeakMap<Editor, Store>()
 
@@ -28,7 +29,7 @@ function getStore(editor: Editor): Store {
 
 export function usePreviewAudience(
   editor: Editor,
-): [Reader | null, (reader: Reader | null) => void] {
+): [PreviewFilter | null, (filter: PreviewFilter | null) => void] {
   const store = getStore(editor)
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -39,8 +40,8 @@ export function usePreviewAudience(
   )
   const value = useSyncExternalStore(subscribe, () => store.value)
   const setValue = useCallback(
-    (reader: Reader | null) => {
-      store.value = reader
+    (filter: PreviewFilter | null) => {
+      store.value = filter?.region || filter?.audience ? filter : null
       store.listeners.forEach((l) => l())
     },
     [store],

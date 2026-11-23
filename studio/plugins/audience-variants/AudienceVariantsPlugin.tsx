@@ -1,7 +1,7 @@
 import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
-import {Card, Flex, Select, Text} from '@sanity/ui'
+import {Button, Card, Flex, Select, Text} from '@sanity/ui'
 import {useEffect} from 'react'
 import {audienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
 import {REPAIR_EVENT} from './constants'
@@ -9,7 +9,8 @@ import {audienceVariantContainers} from './containers'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
 
-const EDITING = ''
+/** "All regions" / "All audiences": that dimension isn't filtered. */
+const ANY = ''
 
 /**
  * Portable Text Editor plugin: registers the behaviors and inline-editing
@@ -65,9 +66,18 @@ export function AudienceVariantsPlugin() {
       >
         <Flex align="center" gap={2} wrap="wrap">
           {previewAudience && (
-            <Text size={1} style={{paddingLeft: 4}}>
-              Read-only preview — switch back to edit
-            </Text>
+            <Flex align="center" gap={2}>
+              <Text size={1} style={{paddingLeft: 4}}>
+                Read-only preview
+              </Text>
+              <Button
+                fontSize={1}
+                padding={2}
+                mode="ghost"
+                text="Back to editing"
+                onClick={() => setPreviewAudience(null)}
+              />
+            </Flex>
           )}
 
           <Flex align="center" gap={2} style={{marginLeft: 'auto'}}>
@@ -80,39 +90,41 @@ export function AudienceVariantsPlugin() {
             <Select
               fontSize={1}
               padding={2}
-              value={previewAudience?.region ?? EDITING}
-              onChange={(e) => {
-                const region = e.currentTarget.value
-                setPreviewAudience(
-                  region
-                    ? {region, audience: previewAudience?.audience ?? audiences[0]?.id ?? ''}
-                    : null,
-                )
-              }}
+              aria-label="Preview region"
+              value={previewAudience?.region ?? ANY}
+              onChange={(e) =>
+                setPreviewAudience({
+                  ...previewAudience,
+                  region: e.currentTarget.value || undefined,
+                })
+              }
             >
-              <option value={EDITING}>All variants (editing)</option>
+              <option value={ANY}>All regions</option>
               {regions.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.title}
                 </option>
               ))}
             </Select>
-            {previewAudience && (
-              <Select
-                fontSize={1}
-                padding={2}
-                value={previewAudience.audience}
-                onChange={(e) =>
-                  setPreviewAudience({...previewAudience, audience: e.currentTarget.value})
-                }
-              >
-                {audiences.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.title}
-                  </option>
-                ))}
-              </Select>
-            )}
+            <Select
+              fontSize={1}
+              padding={2}
+              aria-label="Preview audience"
+              value={previewAudience?.audience ?? ANY}
+              onChange={(e) =>
+                setPreviewAudience({
+                  ...previewAudience,
+                  audience: e.currentTarget.value || undefined,
+                })
+              }
+            >
+              <option value={ANY}>All audiences</option>
+              {audiences.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                </option>
+              ))}
+            </Select>
           </Flex>
         </Flex>
       </Card>

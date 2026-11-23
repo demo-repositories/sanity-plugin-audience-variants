@@ -74,3 +74,38 @@ export function overlappingReaders(value: VariationValue): Map<string, Reader[]>
 export function variantSections(value: VariationValue): VariantSection[] {
   return (value.variants ?? []).filter((s): s is VariantSection => !isDefaultSection(s))
 }
+
+/**
+ * Preview-as filter: a region, an audience, or both. An unset dimension
+ * means "any", so the filter stands for every reader matching the set ones.
+ */
+export type PreviewFilter = {region?: string; audience?: string}
+
+/** Whether the filter pins down a single reader. */
+export function isExactFilter(filter: PreviewFilter): filter is Reader {
+  return Boolean(filter.region && filter.audience)
+}
+
+/**
+ * Keys of the sections that some reader matching the filter sees. With both
+ * dimensions set that's at most one section; with one set it can be several
+ * (e.g. each variant that includes the region, plus the default if some
+ * reader in that region falls through to it).
+ */
+export function previewSectionKeys(
+  value: VariationValue,
+  filter: PreviewFilter,
+  allRegions: string[],
+  allAudiences: string[],
+): Set<string> {
+  const regions = filter.region ? [filter.region] : allRegions
+  const audiences = filter.audience ? [filter.audience] : allAudiences
+  const keys = new Set<string>()
+  for (const region of regions) {
+    for (const audience of audiences) {
+      const section = resolveVariation(value, {region, audience})
+      if (section) keys.add(section._key)
+    }
+  }
+  return keys
+}
