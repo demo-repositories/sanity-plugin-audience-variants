@@ -1,6 +1,6 @@
 import {DocumentTextIcon} from '@sanity/icons/DocumentText'
-import {defineArrayMember, defineField, defineType} from 'sanity'
-import {AudienceVariantsPlugins} from '../plugins/audience-variants'
+import {defineField, defineType} from 'sanity'
+import {defineAudienceVariantsField} from '../plugins/audience-variants'
 
 export const article = defineType({
   name: 'article',
@@ -14,15 +14,7 @@ export const article = defineType({
       type: 'string',
       validation: (rule) => rule.required(),
     }),
-    defineField({
-      name: 'body',
-      title: 'Body',
-      type: 'array',
-      of: [defineArrayMember({type: 'block'})],
-      components: {
-        portableText: {plugins: AudienceVariantsPlugins},
-      },
-    }),
+    defineAudienceVariantsField({name: 'body', title: 'Body'}),
   ],
   preview: {
     select: {title: 'title'},
