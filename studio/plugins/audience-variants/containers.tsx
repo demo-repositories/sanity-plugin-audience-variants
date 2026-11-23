@@ -78,7 +78,7 @@ export const audienceVariantContainers = [
   }),
 ]
 
-const DEFAULT_LABEL = 'Everyone else'
+const DEFAULT_LABEL = 'All other audiences'
 
 /**
  * Sanity sizes containers to the body-text column, so nested text already
