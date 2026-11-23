@@ -70,7 +70,6 @@ export function overlappingReaders(value: VariationValue): Map<string, Reader[]>
   return result
 }
 
-/** Variant sections, i.e. everything but the default. */
 export function variantSections(value: VariationValue): VariantSection[] {
   return (value.variants ?? []).filter((s): s is VariantSection => !isDefaultSection(s))
 }

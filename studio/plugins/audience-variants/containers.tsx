@@ -658,7 +658,6 @@ function AudiencePicker({
   const [popover, setPopover] = useState<HTMLElement | null>(null)
   const [hover, setHover] = useState(false)
 
-  // Keep the variation's actions showing while the picker is open.
   useEffect(() => {
     if (!open) return undefined
     hold(true)

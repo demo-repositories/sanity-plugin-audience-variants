@@ -111,10 +111,6 @@ const wrapOnShortcut = defineBehavior({
 })
 
 /**
- * A variation inserted empty (e.g. from the toolbar's insert menu) gets a
- * default section with one empty paragraph, so there is somewhere to type.
- */
-/**
  * The toolbar's "Audience variation" insert button wraps the selected text
  * instead of inserting an empty variation, so it does the same as the
  * shortcut. With a caret only, it inserts as before.
@@ -132,6 +128,10 @@ const insertWrapsSelection = defineBehavior({
   actions: [() => [raise({type: WRAP_EVENT})]],
 })
 
+/**
+ * A variation inserted empty (e.g. from the toolbar's insert menu) gets a
+ * default section with one empty paragraph, so there is somewhere to type.
+ */
 const scaffoldInsertedVariation = defineBehavior({
   on: 'insert.block',
   guard: ({event}) => {

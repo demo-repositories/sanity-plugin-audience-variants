@@ -10,10 +10,6 @@ import {audienceVariantContainers} from './containers'
 import {usePreviewAudience} from './previewAudience'
 
 /**
- * Portable Text Editor plugin: registers the behaviors and inline-editing
- * containers, and renders a bar with an editor-wide "Preview as" audience switch.
- */
-/**
  * Previewing is read-only: lock the editor while a preview audience is set,
  * and on leaving restore whatever read-only state it had before (it may be
  * read-only for other reasons, e.g. permissions).
@@ -44,6 +40,10 @@ function useRepairVariations(editor: ReturnType<typeof useEditor>) {
   }, [editor, broken, readOnly])
 }
 
+/**
+ * Portable Text Editor plugin: registers the behaviors and inline-editing
+ * containers, and renders a bar with an editor-wide "Preview as" audience switch.
+ */
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
