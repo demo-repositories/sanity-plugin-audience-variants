@@ -1,10 +1,9 @@
 import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
-import {UsersIcon} from '@sanity/icons/Users'
 import {Card, Flex, Select, Text} from '@sanity/ui'
 import {useEffect} from 'react'
-import {audienceVariantBehaviors, hasStrayVariantMembers, wrapShortcut} from './behaviors'
+import {audienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
 import {REPAIR_EVENT} from './constants'
 import {audienceVariantContainers} from './containers'
 import {useAudienceConfig} from './context'
@@ -14,8 +13,7 @@ const EDITING = ''
 
 /**
  * Portable Text Editor plugin: registers the behaviors and inline-editing
- * containers, and renders a bar with a wrap hint and an editor-wide "Preview as" audience
- * switch.
+ * containers, and renders a bar with an editor-wide "Preview as" audience switch.
  */
 /**
  * Previewing is read-only: lock the editor while a preview audience is set,
@@ -66,20 +64,10 @@ export function AudienceVariantsPlugin() {
         style={{transition: 'background-color 120ms'}}
       >
         <Flex align="center" gap={2} wrap="wrap">
-          {previewAudience ? (
+          {previewAudience && (
             <Text size={1} style={{paddingLeft: 4}}>
               Read-only preview — switch back to edit
             </Text>
-          ) : (
-            <>
-              <Text size={1} muted style={{paddingLeft: 4}}>
-                <UsersIcon />
-              </Text>
-              <Text size={0} muted>
-                Wrap selection: toolbar or{' '}
-                {wrapShortcut.keys.map((k) => k.replace(/^Key/, '')).join(' + ')}
-              </Text>
-            </>
           )}
 
           <Flex align="center" gap={2} style={{marginLeft: 'auto'}}>
