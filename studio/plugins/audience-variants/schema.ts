@@ -1,8 +1,9 @@
 import {UsersIcon} from '@sanity/icons/Users'
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import type {Reader, ResolvedAudienceConfig} from './config'
-import {DEFAULT_TYPE, VARIANT_TYPE, VARIATION_TYPE} from './constants'
-import {overlappingReaders, readerKey, type Section} from './resolve'
+import {AudienceFieldComponent, AudienceInput} from './AudienceInput'
+import {AUDIENCE_TYPE, DEFAULT_TYPE, VARIANT_TYPE, VARIATION_TYPE} from './constants'
+import {audienceLabel, overlappingReaders, readerKey, type Section} from './resolve'
 
 /** Nested content: plain text blocks only, so variations can't nest. */
 const nestedContent = [defineArrayMember({type: 'block'})]
@@ -14,6 +15,9 @@ const nestedContent = [defineArrayMember({type: 'block'})]
  *   audienceVariation.variants[]
  *     audienceDefault {content[]}          optional, at most one
  *     audienceVariant {regions[], audiences[], content[]}
+ *
+ * Plus `audienceTargeting {regions[], audiences[]}` for a whole document's
+ * audience (see `defineAudienceField`).
  */
 export function createSchemaTypes({
   regions,
@@ -119,5 +123,37 @@ export function createSchemaTypes({
     },
   })
 
-  return [audienceVariation, audienceVariant, audienceDefault]
+  const audienceTargeting = defineType({
+    name: AUDIENCE_TYPE,
+    title: 'Audience',
+    type: 'object',
+    icon: UsersIcon,
+    components: {input: AudienceInput, field: AudienceFieldComponent},
+    fields: [
+      defineField({
+        name: 'regions',
+        title: 'Regions',
+        type: 'array',
+        of: [defineArrayMember({type: 'string'})],
+        options: {list: regions.map((r) => ({value: r.id, title: r.title}))},
+        validation: (rule) => rule.unique(),
+      }),
+      defineField({
+        name: 'audiences',
+        title: 'Audiences',
+        type: 'array',
+        of: [defineArrayMember({type: 'string'})],
+        options: {list: audiences.map((a) => ({value: a.id, title: a.title}))},
+        validation: (rule) => rule.unique(),
+      }),
+    ],
+    preview: {
+      select: {regions: 'regions', audiences: 'audiences'},
+      prepare: (sel: {regions?: string[]; audiences?: string[]}) => ({
+        title: audienceLabel({summarizeRegions, summarizeAudiences}, sel),
+      }),
+    },
+  })
+
+  return [audienceVariation, audienceVariant, audienceDefault, audienceTargeting]
 }

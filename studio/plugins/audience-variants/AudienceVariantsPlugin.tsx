@@ -1,16 +1,13 @@
 import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
-import {Button, Card, Flex, Select, Text} from '@sanity/ui'
+import {Button, Card, Flex, Text} from '@sanity/ui'
 import {useEffect} from 'react'
 import {audienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
 import {REPAIR_EVENT} from './constants'
+import {AudienceSelect, Muted} from './AudienceSelect'
 import {audienceVariantContainers} from './containers'
-import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
-
-/** "All regions" / "All audiences": that dimension isn't filtered. */
-const ANY = ''
 
 /**
  * Portable Text Editor plugin: registers the behaviors and inline-editing
@@ -49,7 +46,6 @@ function useRepairVariations(editor: ReturnType<typeof useEditor>) {
 
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
-  const {regions, audiences} = useAudienceConfig()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
   useRepairVariations(editor)
@@ -87,44 +83,15 @@ export function AudienceVariantsPlugin() {
             <Text size={1} muted style={{whiteSpace: 'nowrap'}}>
               Preview as
             </Text>
-            <Select
-              fontSize={1}
-              padding={2}
-              aria-label="Preview region"
-              value={previewAudience?.region ?? ANY}
-              onChange={(e) =>
-                setPreviewAudience({
-                  ...previewAudience,
-                  region: e.currentTarget.value || undefined,
-                })
-              }
-            >
-              <option value={ANY}>All regions</option>
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title}
-                </option>
-              ))}
-            </Select>
-            <Select
-              fontSize={1}
-              padding={2}
-              aria-label="Preview audience"
-              value={previewAudience?.audience ?? ANY}
-              onChange={(e) =>
-                setPreviewAudience({
-                  ...previewAudience,
-                  audience: e.currentTarget.value || undefined,
-                })
-              }
-            >
-              <option value={ANY}>All audiences</option>
-              {audiences.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
-                </option>
-              ))}
-            </Select>
+            <AudienceSelect
+              compact
+              aria-label="Preview as"
+              regions={previewAudience?.regions ?? []}
+              audiences={previewAudience?.audiences ?? []}
+              onChange={(field, ids) => setPreviewAudience({...previewAudience, [field]: ids})}
+              emptyLabel={<Muted>Choose who…</Muted>}
+              hint="See what readers in any of these regions and audiences get. Leave a group empty to include all of it."
+            />
           </Flex>
         </Flex>
       </Card>

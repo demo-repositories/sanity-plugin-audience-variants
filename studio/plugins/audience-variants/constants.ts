@@ -1,6 +1,10 @@
 export const VARIATION_TYPE = 'audienceVariation'
 export const VARIANT_TYPE = 'audienceVariant'
 export const DEFAULT_TYPE = 'audienceDefault'
+export const AUDIENCE_TYPE = 'audienceTargeting'
+
+/** Who gets content that targets no one in particular. */
+export const DEFAULT_LABEL = 'Default Audience'
 
 export const WRAP_EVENT = 'custom.audienceVariants.wrap'
 export const UNWRAP_EVENT = 'custom.audienceVariants.unwrap'

@@ -4,11 +4,15 @@ import {
   defineArrayMember,
   defineField,
   type FieldDefinitionBase,
+  type ObjectDefinition,
 } from 'sanity'
-import {VARIATION_TYPE} from './constants'
+import {AUDIENCE_TYPE, VARIATION_TYPE} from './constants'
 import {AudienceVariantsPlugins} from './PortableTextPlugins'
 
 type ArrayMember = ReturnType<typeof defineArrayMember>
+
+export type AudienceFieldOptions = FieldDefinitionBase &
+  Pick<ObjectDefinition, 'name' | 'title' | 'description' | 'hidden' | 'readOnly' | 'initialValue'>
 
 export type AudienceVariantsFieldOptions = Omit<ArrayDefinition, 'type' | 'of' | 'components'> &
   FieldDefinitionBase & {
@@ -41,4 +45,17 @@ export function defineAudienceVariantsField({
     ],
     components: {portableText: {plugins: AudienceVariantsPlugins}},
   })
+}
+
+/**
+ * Who a whole document is for: regions and audiences, picked the same way
+ * as a variant in the body. Empty means the Default Audience (every reader).
+ * Stored as `{_type: 'audienceTargeting', regions[], audiences[]}`.
+ *
+ * ```ts
+ * fields: [defineAudienceField({name: 'audience', title: 'Audience'})]
+ * ```
+ */
+export function defineAudienceField(field: AudienceFieldOptions) {
+  return defineField({...field, type: AUDIENCE_TYPE})
 }

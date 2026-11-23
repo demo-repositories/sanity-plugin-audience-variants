@@ -1,6 +1,6 @@
 import type {PortableTextBlock} from '@portabletext/editor'
-import type {Reader} from './config'
-import {DEFAULT_TYPE, VARIANT_TYPE} from './constants'
+import type {Reader, ResolvedAudienceConfig} from './config'
+import {DEFAULT_LABEL, DEFAULT_TYPE, VARIANT_TYPE} from './constants'
 
 export type VariantSection = {
   _type: typeof VARIANT_TYPE
@@ -76,21 +76,22 @@ export function variantSections(value: VariationValue): VariantSection[] {
 }
 
 /**
- * Preview-as filter: a region, an audience, or both. An unset dimension
- * means "any", so the filter stands for every reader matching the set ones.
+ * Preview-as filter: some regions, some audiences, or both. An empty
+ * dimension means "any", so the filter stands for every reader in any of the
+ * picked regions and any of the picked audiences.
  */
-export type PreviewFilter = {region?: string; audience?: string}
+export type PreviewFilter = {regions?: string[]; audiences?: string[]}
 
 /** Whether the filter pins down a single reader. */
-export function isExactFilter(filter: PreviewFilter): filter is Reader {
-  return Boolean(filter.region && filter.audience)
+export function isExactFilter(filter: PreviewFilter): boolean {
+  return filter.regions?.length === 1 && filter.audiences?.length === 1
 }
 
 /**
- * Keys of the sections that some reader matching the filter sees. With both
- * dimensions set that's at most one section; with one set it can be several
- * (e.g. each variant that includes the region, plus the default if some
- * reader in that region falls through to it).
+ * Keys of the sections that some reader matching the filter sees. With one
+ * region and one audience that's at most one section; otherwise it can be
+ * several (e.g. each variant that includes the region, plus the default if
+ * some reader in that region falls through to it).
  */
 export function previewSectionKeys(
   value: VariationValue,
@@ -98,8 +99,8 @@ export function previewSectionKeys(
   allRegions: string[],
   allAudiences: string[],
 ): Set<string> {
-  const regions = filter.region ? [filter.region] : allRegions
-  const audiences = filter.audience ? [filter.audience] : allAudiences
+  const regions = filter.regions?.length ? filter.regions : allRegions
+  const audiences = filter.audiences?.length ? filter.audiences : allAudiences
   const keys = new Set<string>()
   for (const region of regions) {
     for (const audience of audiences) {
@@ -108,4 +109,37 @@ export function previewSectionKeys(
     }
   }
   return keys
+}
+
+/**
+ * A document-level audience (`audienceTargeting`). An empty dimension means
+ * "any", so nothing picked is the Default Audience: every reader.
+ */
+export type AudienceValue = {_type?: string; regions?: string[]; audiences?: string[]}
+
+/** Whether a reader is in a document's audience. Mirrors the frontend rule. */
+export function audienceMatches(value: AudienceValue | undefined, reader: Reader): boolean {
+  const {regions = [], audiences = []} = value ?? {}
+  return (
+    (!regions.length || regions.includes(reader.region)) &&
+    (!audiences.length || audiences.includes(reader.audience))
+  )
+}
+
+/** "EMEA, APEC · Hotel Owners", or "Default Audience" when nothing is picked. */
+export function audienceLabel(
+  {
+    summarizeRegions,
+    summarizeAudiences,
+  }: Pick<ResolvedAudienceConfig, 'summarizeRegions' | 'summarizeAudiences'>,
+  value: AudienceValue | undefined,
+): string {
+  const {regions = [], audiences = []} = value ?? {}
+  if (!regions.length && !audiences.length) return DEFAULT_LABEL
+  return [
+    regions.length ? summarizeRegions(regions) : null,
+    audiences.length ? summarizeAudiences(audiences) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }

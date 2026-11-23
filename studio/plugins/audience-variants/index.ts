@@ -1,6 +1,11 @@
 export {audienceVariants} from './plugin'
-export {defineAudienceVariantsField, type AudienceVariantsFieldOptions} from './field'
-export {VARIATION_TYPE, VARIANT_TYPE, DEFAULT_TYPE} from './constants'
+export {
+  defineAudienceVariantsField,
+  defineAudienceField,
+  type AudienceVariantsFieldOptions,
+  type AudienceFieldOptions,
+} from './field'
+export {VARIATION_TYPE, VARIANT_TYPE, DEFAULT_TYPE, AUDIENCE_TYPE} from './constants'
 export {
   resolveAudienceConfig,
   type AudienceVariantsConfig,
@@ -9,6 +14,9 @@ export {
 } from './config'
 export {
   resolveVariation,
+  audienceMatches,
+  audienceLabel,
+  type AudienceValue,
   variantMatches,
   previewSectionKeys,
   type PreviewFilter,

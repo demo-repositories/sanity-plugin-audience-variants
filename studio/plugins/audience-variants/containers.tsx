@@ -11,7 +11,7 @@ import {EllipsisHorizontalIcon} from '@sanity/icons/EllipsisHorizontal'
 import {TrashIcon} from '@sanity/icons/Trash'
 import {EarthGlobeIcon} from '@sanity/icons/EarthGlobe'
 import {UnlinkIcon} from '@sanity/icons/Unlink'
-import {Box, Button, Card, Checkbox, Flex, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
+import {Box, Button, Flex, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
 import {Menu, MenuButton, MenuItem} from '@sanity/ui/menu'
 import {Popover} from '@sanity/ui/popover'
 import {
@@ -27,9 +27,11 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import {AudienceChecklist, type AudienceField} from './AudienceChecklist'
 import {
   ADD_SECTION_EVENT,
   CONVERT_SECTION_EVENT,
+  DEFAULT_LABEL,
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
   SET_TARGETING_EVENT,
@@ -84,8 +86,6 @@ export const audienceVariantContainers = [
     ],
   }),
 ]
-
-const DEFAULT_LABEL = 'Default Audience'
 
 /**
  * Sanity sizes containers to the body-text column, so nested text already
@@ -321,7 +321,7 @@ function useParentVariation(editor: Editor, path: ContainerRenderProps['path']) 
   ) as VariationValue | undefined
 }
 
-type Field = 'regions' | 'audiences'
+type Field = AudienceField
 
 /**
  * Which section's picker is open, per editor. Kept outside the picker so it
@@ -652,7 +652,6 @@ function AudiencePicker({
   others: VariantSection[]
   onChange: (field: Field, ids: string[]) => void
 }) {
-  const config = useAudienceConfig()
   const {hold} = useContext(VariationActiveContext)
   const [open, setOpen] = useOpenPicker(useEditor(), sectionKey)
   const [button, setButton] = useState<HTMLElement | null>(null)
@@ -677,69 +676,15 @@ function AudiencePicker({
   const selected = {regions, audiences}
   const otherField = (field: Field): Field => (field === 'regions' ? 'audiences' : 'regions')
 
-  /** The other variant that ticking `id` would clash with, if any. */
-  const clashWith = (field: Field, id: string) =>
-    others.find(
+  /** Why ticking `value` isn't allowed: it would reach a reader another variant reaches. */
+  const takenBy = (field: Field, value: AudienceDimensionValue) =>
+    others.some(
       (o) =>
-        o[field]?.includes(id) &&
+        o[field]?.includes(value.id) &&
         o[otherField(field)]?.some((x) => selected[otherField(field)].includes(x)),
     )
-
-  const group = (field: Field, heading: string, values: AudienceDimensionValue[]) => {
-    const ids = selected[field]
-    const allOn = values.every((v) => ids.includes(v.id))
-    const toggle = (id: string) =>
-      onChange(field, ids.includes(id) ? ids.filter((s) => s !== id) : [...ids, id])
-    const free = values.filter((v) => ids.includes(v.id) || !clashWith(field, v.id))
-    return (
-      <Stack gap={3}>
-        <Flex align="center" gap={2}>
-          <Box flex={1}>
-            <Text size={1} weight="medium">
-              {heading}
-            </Text>
-          </Box>
-          <Button
-            fontSize={0}
-            padding={1}
-            mode="bleed"
-            text={allOn ? 'Clear' : 'All'}
-            onClick={() => onChange(field, allOn ? [] : free.map((v) => v.id))}
-          />
-        </Flex>
-        {values.map((v) => {
-          const checked = ids.includes(v.id)
-          const isTaken = !checked && Boolean(clashWith(field, v.id))
-          return (
-            <Flex
-              key={v.id}
-              as="label"
-              align="center"
-              gap={2}
-              style={{cursor: isTaken ? 'not-allowed' : 'pointer'}}
-              title={
-                isTaken
-                  ? `Another variant already reaches ${v.title} for some of the selected ${otherField(field)}`
-                  : undefined
-              }
-            >
-              <Checkbox checked={checked} disabled={isTaken} onChange={() => toggle(v.id)} />
-              <Box flex={1}>
-                <Text size={1} muted={isTaken}>
-                  {v.title}
-                </Text>
-              </Box>
-              {isTaken && (
-                <Text size={0} muted>
-                  in another variant
-                </Text>
-              )}
-            </Flex>
-          )
-        })}
-      </Stack>
-    )
-  }
+      ? `Another variant already reaches ${value.title} for some of the selected ${otherField(field)}`
+      : undefined
 
   return (
     <Popover
@@ -748,17 +693,17 @@ function AudiencePicker({
       placement="bottom-start"
       ref={setPopover}
       content={
-        <Card padding={3} radius={2} style={{maxWidth: 360}}>
-          <Stack gap={4}>
-            <Text size={1} muted>
-              {isDefault
-                ? 'Pick regions and audiences to show this only to them. Readers no variant targets will see nothing here.'
-                : 'Show this audience variant to readers in any of these regions who are in any of these audiences.'}
-            </Text>
-            {group('regions', 'Regions', config.regions)}
-            {group('audiences', 'Audiences', config.audiences)}
-          </Stack>
-        </Card>
+        <AudienceChecklist
+          regions={regions}
+          audiences={audiences}
+          onChange={onChange}
+          takenBy={takenBy}
+          hint={
+            isDefault
+              ? 'Pick regions and audiences to show this only to them. Readers no variant targets will see nothing here.'
+              : 'Shown to readers in any of these regions who are in any of these audiences.'
+          }
+        />
       }
     >
       {/* A bare button: the label stays plain text on the tint, underlined on hover. */}
