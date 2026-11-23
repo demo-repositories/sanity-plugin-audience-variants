@@ -1,10 +1,11 @@
-import {useEditor} from '@portabletext/editor'
+import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
 import {UsersIcon} from '@sanity/icons/Users'
 import {Card, Flex, Select, Text} from '@sanity/ui'
 import {useEffect} from 'react'
-import {audienceVariantBehaviors, wrapShortcut} from './behaviors'
+import {audienceVariantBehaviors, hasStrayVariantMembers, wrapShortcut} from './behaviors'
+import {REPAIR_EVENT} from './constants'
 import {audienceVariantContainers} from './containers'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
@@ -32,11 +33,27 @@ function usePreviewReadOnly(editor: ReturnType<typeof useEditor>, previewing: bo
   }, [editor, previewing])
 }
 
+/**
+ * Self-heal: a block left directly in a variation's `variants` (outside any
+ * section) crashes Sanity's form as soon as the caret enters it, so move it
+ * back into a section whenever one shows up, including in stored documents.
+ */
+function useRepairVariations(editor: ReturnType<typeof useEditor>) {
+  const broken = useEditorSelector(editor, (snapshot) =>
+    hasStrayVariantMembers(snapshot.context.value),
+  )
+  const readOnly = useEditorSelector(editor, (snapshot) => snapshot.context.readOnly)
+  useEffect(() => {
+    if (broken && !readOnly) editor.send({type: REPAIR_EVENT})
+  }, [editor, broken, readOnly])
+}
+
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
   const {audiences} = useAudienceConfig()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
+  useRepairVariations(editor)
 
   return (
     <>

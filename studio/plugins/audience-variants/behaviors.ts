@@ -6,6 +6,7 @@ import {
   ADD_SECTION_EVENT,
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
+  REPAIR_EVENT,
   SET_AUDIENCES_EVENT,
   UNWRAP_EVENT,
   VARIANT_TYPE,
@@ -300,7 +301,135 @@ const setAudiences = defineBehavior({
   actions: [(_, {at, audiences}) => [raise({type: 'set', at, value: audiences})]],
 })
 
+function isSection(node: {_type: string}): node is Section {
+  return node._type === VARIANT_TYPE || node._type === DEFAULT_TYPE
+}
+
+/**
+ * Whether any variation has members in `variants` that aren't sections. The
+ * editor has been seen to leave a bare text block there after Enter/Backspace
+ * inside a section; Sanity's form then crashes when the caret enters it
+ * ("Cannot read properties of undefined (reading 'schemaType')").
+ */
+export function hasStrayVariantMembers(value: PortableTextBlock[] | undefined) {
+  return (value ?? []).some(
+    (b) =>
+      b._type === VARIATION_TYPE &&
+      ((b as VariationValue).variants ?? []).some((member) => !isSection(member)),
+  )
+}
+
+/**
+ * Move bare blocks found directly in a variation's `variants` back into a
+ * section: the section above them, else the one below, else a new default.
+ * Anything that isn't a text block can't live in a section and is removed.
+ * The caret follows a moved block.
+ */
+const repairVariations = defineBehavior({
+  on: REPAIR_EVENT,
+  guard: ({snapshot}) => {
+    const block = snapshot.context.value.find(
+      (b): b is VariationValue & PortableTextBlock =>
+        b._type === VARIATION_TYPE &&
+        ((b as VariationValue).variants ?? []).some((member) => !isSection(member)),
+    )
+    return block ? {block} : false
+  },
+  actions: [
+    ({snapshot}, {block}) => {
+      const textBlockType = snapshot.context.schema.block.name
+      const variationPath: Path = [{_key: block._key}]
+      const members = (block.variants ?? []) as (Section | PortableTextBlock)[]
+      const sections = members.filter(isSection)
+      const actions: ReturnType<typeof raise>[] = []
+      // Where each moved block ends up, to carry the caret along.
+      const moved = new Map<string, {sectionKey: string; blockKey: string}>()
+
+      if (sections.length === 0) {
+        const content = members.filter((m) => m._type === textBlockType) as PortableTextBlock[]
+        const section: Section = {
+          _type: DEFAULT_TYPE,
+          _key: snapshot.context.keyGenerator(),
+          content,
+        }
+        content.forEach((b) => moved.set(b._key, {sectionKey: section._key, blockKey: b._key}))
+        actions.push(raise({type: 'set', at: [...variationPath, 'variants'], value: [section]}))
+      } else {
+        let target: Section | undefined
+        let anchor: {key: string; position: 'before' | 'after'} | undefined
+        members.forEach((member, index) => {
+          if (isSection(member)) {
+            target = member
+            const last = member.content?.at(-1)
+            anchor = last ? {key: last._key, position: 'after'} : undefined
+            return
+          }
+          const at: Path = [...variationPath, 'variants', {_key: member._key}]
+          if (member._type !== textBlockType) {
+            actions.push(raise({type: 'unset', at}))
+            return
+          }
+          if (!target) {
+            // Stray before any section: prepend to the next one.
+            target = members.slice(index).find(isSection)!
+            const first = target.content?.[0]
+            anchor = first ? {key: first._key, position: 'before'} : undefined
+          }
+          const taken = new Set((target.content ?? []).map((b) => b._key))
+          const blockKey = taken.has(member._key) ? snapshot.context.keyGenerator() : member._key
+          const value = {...member, _key: blockKey}
+          const contentPath: Path = [...variationPath, 'variants', {_key: target._key}, 'content']
+          actions.push(raise({type: 'unset', at}))
+          actions.push(
+            anchor
+              ? raise({
+                  type: 'insert',
+                  at: [...contentPath, {_key: anchor.key}],
+                  value,
+                  position: anchor.position,
+                })
+              : raise({type: 'set', at: contentPath, value: [value]}),
+          )
+          anchor = {key: blockKey, position: 'after'}
+          moved.set(member._key, {sectionKey: target._key, blockKey})
+        })
+      }
+
+      const selection = snapshot.context.selection
+      const remap = (path: Path): Path | undefined => {
+        const [variation, field, member, ...rest] = path
+        if ((variation as Keyed)?._key !== block._key || field !== 'variants') return undefined
+        const to = moved.get((member as Keyed)?._key)
+        if (!to) return undefined
+        return [
+          ...variationPath,
+          'variants',
+          {_key: to.sectionKey},
+          'content',
+          {_key: to.blockKey},
+          ...rest,
+        ]
+      }
+      const anchorPath = selection && remap(selection.anchor.path)
+      const focusPath = selection && remap(selection.focus.path)
+      if (selection && anchorPath && focusPath) {
+        actions.push(
+          raise({
+            type: 'select',
+            at: {
+              anchor: {path: anchorPath, offset: selection.anchor.offset},
+              focus: {path: focusPath, offset: selection.focus.offset},
+            },
+          }),
+        )
+      }
+      return actions
+    },
+  ],
+})
+
 export const audienceVariantBehaviors = [
+  repairVariations,
   wrapSelection,
   wrapOnShortcut,
   insertWrapsSelection,
