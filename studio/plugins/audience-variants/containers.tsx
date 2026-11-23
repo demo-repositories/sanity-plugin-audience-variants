@@ -17,7 +17,6 @@ import {
   createContext,
   type ComponentProps,
   type CSSProperties,
-  Fragment,
   type ReactNode,
   useCallback,
   useContext,
@@ -30,19 +29,23 @@ import {
   ADD_SECTION_EVENT,
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
-  SET_AUDIENCES_EVENT,
+  SET_TARGETING_EVENT,
   UNWRAP_EVENT,
   VARIANT_TYPE,
   VARIATION_TYPE,
 } from './constants'
+import type {AudienceDimensionValue, Reader} from './config'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
 import {
   getDefaultSection,
   isDefaultSection,
-  overlappingAudiences,
+  overlappingReaders,
+  readerKey,
+  readersOf,
   resolveVariation,
   type Section,
+  type VariantSection,
   variantSections,
   type VariationValue,
 } from './resolve'
@@ -312,31 +315,39 @@ function useParentVariation(editor: Editor, path: ContainerRenderProps['path']) 
   ) as VariationValue | undefined
 }
 
+type Field = 'regions' | 'audiences'
+
 function SectionContainer({attributes, children, node, path, readOnly}: ContainerRenderProps) {
   const section = node as unknown as Section
   const editor = useEditor()
   const [previewAudience] = usePreviewAudience(editor)
   const variation = useParentVariation(editor, path)
   const {active} = useContext(VariationActiveContext)
+  const {regions: allRegions, audiences: allAudiences} = useAudienceConfig()
 
   const isDefault = isDefaultSection(section)
+  const regions = isDefault ? [] : (section.regions ?? [])
   const audiences = isDefault ? [] : (section.audiences ?? [])
 
-  // Audiences picked in this variation's other variants: an audience may be
-  // in only one variant, so the picker offers each audience once.
-  const takenElsewhere = useMemo(
-    () =>
-      new Set(
-        variation
-          ? variantSections(variation)
-              .filter((s) => s._key !== section._key)
-              .flatMap((s) => s.audiences ?? [])
-          : [],
-      ),
+  const others = useMemo(
+    () => (variation ? variantSections(variation).filter((s) => s._key !== section._key) : []),
     [variation, section._key],
   )
 
-  // Preview: show only the section this audience gets, without chrome.
+  // The default is only seen by readers no variant reaches; flag it when
+  // every region × audience is already taken.
+  const fallbackUnreachable = useMemo(() => {
+    if (!isDefault || !variation) return false
+    const reached = new Set(variantSections(variation).flatMap(readersOf).map(readerKey))
+    return (
+      reached.size > 0 &&
+      allRegions.every((r) =>
+        allAudiences.every((a) => reached.has(readerKey({region: r.id, audience: a.id}))),
+      )
+    )
+  }, [isDefault, variation, allRegions, allAudiences])
+
+  // Preview: show only the section this reader gets, without chrome.
   if (previewAudience) {
     const resolved = variation ? resolveVariation(variation, previewAudience) : undefined
     return (
@@ -349,8 +360,10 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   const label = (
     <SectionLabel
       isDefault={isDefault}
+      regions={regions}
       audiences={audiences}
-      overlaps={variation ? overlappingAudiences(variation) : new Set()}
+      overlaps={(variation && overlappingReaders(variation).get(section._key)) || []}
+      fallbackUnreachable={fallbackUnreachable}
     />
   )
 
@@ -368,14 +381,16 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
         <Flex align="center" gap={1} style={{minHeight: 25}}>
           {!readOnly && !isDefault && variation ? (
             <AudiencePicker
-              selected={audiences}
-              taken={takenElsewhere}
-              onChange={(next) =>
+              regions={regions}
+              audiences={audiences}
+              others={others}
+              onChange={(field, ids) =>
                 editor.send({
-                  type: SET_AUDIENCES_EVENT,
+                  type: SET_TARGETING_EVENT,
                   key: variation._key,
                   sectionKey: section._key,
-                  audiences: next,
+                  field,
+                  ids,
                 })
               }
             >
@@ -394,46 +409,69 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   )
 }
 
-/** Who sees a section, as one line of text: "EMEA Corporate, NORAM Corporate". */
+/**
+ * Who sees a section, as one line of text: "EMEA, APEC · Hotel Owners".
+ * Hovering shows the full names.
+ */
 function SectionLabel({
   isDefault,
+  regions,
   audiences,
   overlaps,
+  fallbackUnreachable,
 }: {
   isDefault: boolean
+  regions: string[]
   audiences: string[]
-  overlaps: Set<string>
+  overlaps: Reader[]
+  fallbackUnreachable: boolean
 }) {
-  const {audienceTitle} = useAudienceConfig()
+  const {regionTitle, audienceTitle, summarizeRegions, summarizeAudiences, readerTitle} =
+    useAudienceConfig()
   const style = {fontWeight: 500}
 
   if (isDefault) {
-    return (
+    return fallbackUnreachable ? (
+      <Text
+        size={1}
+        style={{...style, color: color.caution}}
+        title="Every region and audience already has a variant, so no one sees this content"
+      >
+        {DEFAULT_LABEL} · none left
+      </Text>
+    ) : (
       <Text size={1} style={{...style, color: color.muted}}>
         {DEFAULT_LABEL}
       </Text>
     )
   }
-  if (!audiences.length) {
+
+  if (!regions.length && !audiences.length) {
     return (
       <Text size={1} style={{...style, color: color.caution}}>
-        Choose audiences…
+        Set audience variant…
       </Text>
     )
   }
+
+  const part = (ids: string[], summarize: (ids: string[]) => string, empty: string) =>
+    ids.length ? summarize(ids) : <span style={{color: color.caution}}>{empty}</span>
+
+  const title = overlaps.length
+    ? `Also reached by another variant: ${overlaps.map(readerTitle).join(', ')}`
+    : [regions.map(regionTitle).join(', '), audiences.map(audienceTitle).join(', ')]
+        .filter(Boolean)
+        .join(' · ')
+
   return (
-    <Text size={1} style={{...style, color: color.variant}}>
-      {audiences.map((id, i) => (
-        <Fragment key={id}>
-          {i > 0 && ', '}
-          <span
-            style={overlaps.has(id) ? {color: color.critical} : undefined}
-            title={overlaps.has(id) ? 'Also used in another variant' : undefined}
-          >
-            {audienceTitle(id)}
-          </span>
-        </Fragment>
-      ))}
+    <Text
+      size={1}
+      style={{...style, color: overlaps.length ? color.critical : color.variant}}
+      title={title || undefined}
+    >
+      {part(regions, summarizeRegions, 'Choose regions…')}
+      <span style={{color: color.muted}}> · </span>
+      {part(audiences, summarizeAudiences, 'Choose audiences…')}
     </Text>
   )
 }
@@ -493,19 +531,26 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
   )
 }
 
-/** Wraps the section label in a button that opens the audience picker. */
+/**
+ * Wraps the section label in a button that opens the picker: regions and
+ * audiences as two checkbox groups. A reader may be in only one variant, so
+ * an option is disabled when ticking it would reach a reader another variant
+ * already reaches.
+ */
 function AudiencePicker({
   children,
-  selected,
-  taken,
+  regions,
+  audiences,
+  others,
   onChange,
 }: {
   children: ReactNode
-  selected: string[]
-  taken: Set<string>
-  onChange: (next: string[]) => void
+  regions: string[]
+  audiences: string[]
+  others: VariantSection[]
+  onChange: (field: Field, ids: string[]) => void
 }) {
-  const {audiences} = useAudienceConfig()
+  const config = useAudienceConfig()
   const {hold} = useContext(VariationActiveContext)
   const [open, setOpen] = useState(false)
   const [button, setButton] = useState<HTMLElement | null>(null)
@@ -527,8 +572,72 @@ function AudiencePicker({
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const toggle = (id: string) =>
-    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id])
+  const selected = {regions, audiences}
+  const otherField = (field: Field): Field => (field === 'regions' ? 'audiences' : 'regions')
+
+  /** The other variant that ticking `id` would clash with, if any. */
+  const clashWith = (field: Field, id: string) =>
+    others.find(
+      (o) =>
+        o[field]?.includes(id) &&
+        o[otherField(field)]?.some((x) => selected[otherField(field)].includes(x)),
+    )
+
+  const group = (field: Field, heading: string, values: AudienceDimensionValue[]) => {
+    const ids = selected[field]
+    const allOn = values.every((v) => ids.includes(v.id))
+    const toggle = (id: string) =>
+      onChange(field, ids.includes(id) ? ids.filter((s) => s !== id) : [...ids, id])
+    const free = values.filter((v) => ids.includes(v.id) || !clashWith(field, v.id))
+    return (
+      <Stack gap={3}>
+        <Flex align="center" gap={2}>
+          <Box flex={1}>
+            <Text size={1} weight="medium">
+              {heading}
+            </Text>
+          </Box>
+          <Button
+            fontSize={0}
+            padding={1}
+            mode="bleed"
+            text={allOn ? 'Clear' : 'All'}
+            onClick={() => onChange(field, allOn ? [] : free.map((v) => v.id))}
+          />
+        </Flex>
+        {values.map((v) => {
+          const checked = ids.includes(v.id)
+          const isTaken = !checked && Boolean(clashWith(field, v.id))
+          return (
+            <Flex
+              key={v.id}
+              as="label"
+              align="center"
+              gap={2}
+              style={{cursor: isTaken ? 'not-allowed' : 'pointer'}}
+              title={
+                isTaken
+                  ? `Another variant already reaches ${v.title} for some of the selected ${otherField(field)}`
+                  : undefined
+              }
+            >
+              <Checkbox checked={checked} disabled={isTaken} onChange={() => toggle(v.id)} />
+              <Box flex={1}>
+                <Text size={1} muted={isTaken}>
+                  {v.title}
+                </Text>
+              </Box>
+              {isTaken && (
+                <Text size={0} muted>
+                  in another variant
+                </Text>
+              )}
+            </Flex>
+          )
+        })}
+      </Stack>
+    )
+  }
 
   return (
     <Popover
@@ -537,40 +646,14 @@ function AudiencePicker({
       placement="bottom-start"
       ref={setPopover}
       content={
-        <Card padding={3} radius={2}>
-          <Stack gap={3}>
-            <Text size={1} weight="medium">
-              Show this variant to
+        <Card padding={3} radius={2} style={{maxWidth: 360}}>
+          <Stack gap={4}>
+            <Text size={1} muted>
+              Show this audience variant to readers in any of these regions who are in any of these
+              audiences.
             </Text>
-            {audiences.map((a) => {
-              const isTaken = taken.has(a.id) && !selected.includes(a.id)
-              return (
-                <Flex
-                  key={a.id}
-                  as="label"
-                  align="center"
-                  gap={2}
-                  style={{cursor: isTaken ? 'not-allowed' : 'pointer'}}
-                  title={isTaken ? `${a.title} already has its own variant` : undefined}
-                >
-                  <Checkbox
-                    checked={selected.includes(a.id)}
-                    disabled={isTaken}
-                    onChange={() => toggle(a.id)}
-                  />
-                  <Box flex={1}>
-                    <Text size={1} muted={isTaken}>
-                      {a.title}
-                    </Text>
-                  </Box>
-                  {isTaken && (
-                    <Text size={0} muted>
-                      in another variant
-                    </Text>
-                  )}
-                </Flex>
-              )
-            })}
+            {group('regions', 'Regions', config.regions)}
+            {group('audiences', 'Audiences', config.audiences)}
           </Stack>
         </Card>
       }
@@ -579,7 +662,7 @@ function AudiencePicker({
       <button
         ref={setButton}
         type="button"
-        title="Change audiences"
+        title="Change regions and audiences"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         onMouseEnter={() => setHover(true)}

@@ -1,8 +1,8 @@
 import {UsersIcon} from '@sanity/icons/Users'
 import {defineArrayMember, defineField, defineType} from 'sanity'
-import type {ResolvedAudienceConfig} from './config'
+import type {Reader, ResolvedAudienceConfig} from './config'
 import {DEFAULT_TYPE, VARIANT_TYPE, VARIATION_TYPE} from './constants'
-import {overlappingAudiences, type Section} from './resolve'
+import {overlappingReaders, readerKey, type Section} from './resolve'
 
 /** Nested content: plain text blocks only, so variations can't nest. */
 const nestedContent = [defineArrayMember({type: 'block'})]
@@ -13,9 +13,15 @@ const nestedContent = [defineArrayMember({type: 'block'})]
  * Shape (both levels are edited inline as Portable Text containers):
  *   audienceVariation.variants[]
  *     audienceDefault {content[]}          optional, at most one
- *     audienceVariant {audiences[], content[]}
+ *     audienceVariant {regions[], audiences[], content[]}
  */
-export function createSchemaTypes({audiences, audienceTitle}: ResolvedAudienceConfig) {
+export function createSchemaTypes({
+  regions,
+  audiences,
+  summarizeRegions,
+  summarizeAudiences,
+  readerTitle,
+}: ResolvedAudienceConfig) {
   const audienceDefault = defineType({
     name: DEFAULT_TYPE,
     title: 'Default',
@@ -39,14 +45,19 @@ export function createSchemaTypes({audiences, audienceTitle}: ResolvedAudienceCo
     icon: UsersIcon,
     fields: [
       defineField({
+        name: 'regions',
+        title: 'Regions',
+        type: 'array',
+        of: [defineArrayMember({type: 'string'})],
+        options: {list: regions.map((r) => ({value: r.id, title: r.title}))},
+        validation: (rule) => rule.required().min(1).unique(),
+      }),
+      defineField({
         name: 'audiences',
         title: 'Audiences',
         type: 'array',
         of: [defineArrayMember({type: 'string'})],
-        options: {
-          list: audiences.map((a) => ({value: a.id, title: a.title})),
-          layout: 'grid',
-        },
+        options: {list: audiences.map((a) => ({value: a.id, title: a.title}))},
         validation: (rule) => rule.required().min(1).unique(),
       }),
       defineField({
@@ -57,9 +68,10 @@ export function createSchemaTypes({audiences, audienceTitle}: ResolvedAudienceCo
       }),
     ],
     preview: {
-      select: {audiences: 'audiences'},
-      prepare: ({audiences: ids}: {audiences?: string[]}) => ({
-        title: ids?.length ? ids.map(audienceTitle).join(', ') : 'No audiences selected',
+      select: {regions: 'regions', audiences: 'audiences'},
+      prepare: (sel: {regions?: string[]; audiences?: string[]}) => ({
+        title: summarizeRegions(sel.regions ?? []) || 'No regions selected',
+        subtitle: summarizeAudiences(sel.audiences ?? []) || 'No audiences selected',
       }),
     },
   })
@@ -81,16 +93,18 @@ export function createSchemaTypes({audiences, audienceTitle}: ResolvedAudienceCo
             if (sections.filter((s) => s._type === DEFAULT_TYPE).length > 1) {
               return 'Only one default per variation'
             }
-            // An audience may only appear in one variant per variation, so a
-            // reader always resolves to at most one variant.
-            const overlaps = overlappingAudiences({
+            // A reader may only be reached by one variant per variation, so
+            // they always resolve to at most one variant.
+            const overlaps = overlappingReaders({
               _type: VARIATION_TYPE,
               _key: '',
               variants: sections,
             })
             if (overlaps.size) {
-              const names = [...overlaps].map(audienceTitle).join(', ')
-              return `Used in more than one variant: ${names}`
+              const unique = new Map<string, Reader>()
+              for (const r of [...overlaps.values()].flat()) unique.set(readerKey(r), r)
+              const names = [...unique.values()].map(readerTitle).join(', ')
+              return `Reached by more than one variant: ${names}`
             }
             return true
           }),

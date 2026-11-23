@@ -5,10 +5,11 @@ export {
   resolveAudienceConfig,
   type AudienceVariantsConfig,
   type AudienceDimensionValue,
-  type Audience,
+  type Reader,
 } from './config'
 export {
   resolveVariation,
+  variantMatches,
   type VariationValue,
   type Section,
   type VariantSection,

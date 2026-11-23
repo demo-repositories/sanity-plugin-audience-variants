@@ -48,7 +48,7 @@ function useRepairVariations(editor: ReturnType<typeof useEditor>) {
 
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
-  const {audiences} = useAudienceConfig()
+  const {regions, audiences} = useAudienceConfig()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
   useRepairVariations(editor)
@@ -80,16 +80,39 @@ export function AudienceVariantsPlugin() {
             <Select
               fontSize={1}
               padding={2}
-              value={previewAudience ?? EDITING}
-              onChange={(e) => setPreviewAudience(e.currentTarget.value || null)}
+              value={previewAudience?.region ?? EDITING}
+              onChange={(e) => {
+                const region = e.currentTarget.value
+                setPreviewAudience(
+                  region
+                    ? {region, audience: previewAudience?.audience ?? audiences[0]?.id ?? ''}
+                    : null,
+                )
+              }}
             >
               <option value={EDITING}>All variants (editing)</option>
-              {audiences.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
+              {regions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title}
                 </option>
               ))}
             </Select>
+            {previewAudience && (
+              <Select
+                fontSize={1}
+                padding={2}
+                value={previewAudience.audience}
+                onChange={(e) =>
+                  setPreviewAudience({...previewAudience, audience: e.currentTarget.value})
+                }
+              >
+                {audiences.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.title}
+                  </option>
+                ))}
+              </Select>
+            )}
           </Flex>
         </Flex>
       </Card>

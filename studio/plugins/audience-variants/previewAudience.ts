@@ -1,5 +1,6 @@
 import type {Editor} from '@portabletext/editor'
 import {useCallback, useSyncExternalStore} from 'react'
+import type {Reader} from './config'
 
 /**
  * "Preview as audience" state, shared between the plugin toolbar and every
@@ -12,7 +13,7 @@ import {useCallback, useSyncExternalStore} from 'react'
  *
  * `null` means "editing": no preview, blocks show their own tabs.
  */
-type Store = {value: string | null; listeners: Set<() => void>}
+type Store = {value: Reader | null; listeners: Set<() => void>}
 
 const stores = new WeakMap<Editor, Store>()
 
@@ -25,7 +26,9 @@ function getStore(editor: Editor): Store {
   return store
 }
 
-export function usePreviewAudience(editor: Editor): [string | null, (id: string | null) => void] {
+export function usePreviewAudience(
+  editor: Editor,
+): [Reader | null, (reader: Reader | null) => void] {
   const store = getStore(editor)
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -36,8 +39,8 @@ export function usePreviewAudience(editor: Editor): [string | null, (id: string 
   )
   const value = useSyncExternalStore(subscribe, () => store.value)
   const setValue = useCallback(
-    (id: string | null) => {
-      store.value = id
+    (reader: Reader | null) => {
+      store.value = reader
       store.listeners.forEach((l) => l())
     },
     [store],

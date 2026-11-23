@@ -7,7 +7,7 @@ import {
   DEFAULT_TYPE,
   REMOVE_SECTION_EVENT,
   REPAIR_EVENT,
-  SET_AUDIENCES_EVENT,
+  SET_TARGETING_EVENT,
   UNWRAP_EVENT,
   VARIANT_TYPE,
   VARIATION_TYPE,
@@ -53,7 +53,7 @@ function newSection(snapshot: EditorSnapshot, kind: 'default' | 'variant'): Sect
   const _key = snapshot.context.keyGenerator()
   return kind === 'default'
     ? {_type: DEFAULT_TYPE, _key, content}
-    : {_type: VARIANT_TYPE, _key, audiences: [], content}
+    : {_type: VARIANT_TYPE, _key, regions: [], audiences: [], content}
 }
 
 /** Caret at the start of a section's first block. */
@@ -282,23 +282,26 @@ const removeSection = defineBehavior({
   ],
 })
 
-const setAudiences = defineBehavior({
-  on: SET_AUDIENCES_EVENT,
+/** Set a variant's `regions` or `audiences` (the picker sends the whole list). */
+const setTargeting = defineBehavior({
+  on: SET_TARGETING_EVENT,
   guard: ({snapshot, event}) => {
-    const {key, sectionKey, audiences} = event as {
+    const {key, sectionKey, field, ids} = event as {
       key?: string
       sectionKey?: string
-      audiences?: string[]
+      field?: 'regions' | 'audiences'
+      ids?: string[]
     }
     const block = findVariation(snapshot, key ?? '')
     const section = block?.variants?.find((s) => s._key === sectionKey)
-    if (!block || !section || isDefaultSection(section) || !audiences) return false
+    if (!block || !section || isDefaultSection(section) || !ids) return false
+    if (field !== 'regions' && field !== 'audiences') return false
     return {
-      at: [{_key: block._key}, 'variants', {_key: section._key}, 'audiences'] as Path,
-      audiences,
+      at: [{_key: block._key}, 'variants', {_key: section._key}, field] as Path,
+      ids,
     }
   },
-  actions: [(_, {at, audiences}) => [raise({type: 'set', at, value: audiences})]],
+  actions: [(_, {at, ids}) => [raise({type: 'set', at, value: ids})]],
 })
 
 function isSection(node: {_type: string}): node is Section {
@@ -437,5 +440,5 @@ export const audienceVariantBehaviors = [
   unwrapVariation,
   addSection,
   removeSection,
-  setAudiences,
+  setTargeting,
 ]

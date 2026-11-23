@@ -8,7 +8,7 @@ import {createSchemaTypes} from './schema'
  * types and makes the audience config available to the editor components.
  *
  * ```ts
- * plugins: [audienceVariants({regions: [...], ownershipTypes: [...]})]
+ * plugins: [audienceVariants({regions: [...], audiences: [...]})]
  * ```
  *
  * Then add a field with `defineAudienceVariantsField({name: 'body'})`.

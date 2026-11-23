@@ -14,17 +14,32 @@ export default defineConfig({
   plugins: [
     structureTool(),
     visionTool(),
-    // PLACEHOLDER audience values: replace with the real lists.
+    // Ids are placeholders until we have the real ones from the existing
+    // schema; titles match the current Studio. `shortTitle` is used in the
+    // one-line label above each variant.
     audienceVariants({
       regions: [
-        {id: 'noram', title: 'NORAM'},
-        {id: 'emea', title: 'EMEA'},
-        {id: 'apac', title: 'APAC'},
-        {id: 'cala', title: 'CALA'},
+        {id: 'global', title: 'Global'},
+        {id: 'apec', title: 'Asia Pacific excluding China (APEC)', shortTitle: 'APEC'},
+        {id: 'cala', title: 'Caribbean and Latin America (CALA)', shortTitle: 'CALA'},
+        {id: 'emea', title: 'Europe, Middle East and Africa (EMEA)', shortTitle: 'EMEA'},
+        {id: 'gc', title: 'Greater China (GC)', shortTitle: 'GC'},
+        {id: 'uscan', title: 'U.S. and Canada (US/CAN)', shortTitle: 'US/CAN'},
       ],
-      ownershipTypes: [
-        {id: 'corporate', title: 'Corporate'},
-        {id: 'franchise', title: 'Franchise'},
+      audiences: [
+        {
+          id: 'managedAssociates',
+          title: 'Marriott International Managed Associates',
+          shortTitle: 'Managed Associates',
+        },
+        {
+          id: 'franchisees',
+          title: 'Franchisees & Hotel Partners',
+          shortTitle: 'Franchisees & Partners',
+        },
+        {id: 'hotelOwners', title: 'Hotel Owners'},
+        {id: 'contractors', title: 'Contractors'},
+        {id: 'contractorBusinessApps', title: 'Contractor Business Apps'},
       ],
     }),
   ],
