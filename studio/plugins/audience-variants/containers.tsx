@@ -492,8 +492,13 @@ function SectionLabel({
     )
   }
 
-  const part = (ids: string[], summarize: (ids: string[]) => string, empty: string) =>
-    ids.length ? summarize(ids) : <span style={{color: color.caution}}>{empty}</span>
+  // An empty dimension means "any", so only show the dimensions actually chosen.
+  const label = [
+    regions.length ? summarizeRegions(regions) : null,
+    audiences.length ? summarizeAudiences(audiences) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const title = overlaps.length
     ? `Also reached by another variant: ${overlaps.map(readerTitle).join(', ')}`
@@ -507,9 +512,7 @@ function SectionLabel({
       style={{...style, color: overlaps.length ? color.critical : color.variant}}
       title={title || undefined}
     >
-      {part(regions, summarizeRegions, 'Choose regions…')}
-      <span style={{color: color.muted}}> · </span>
-      {part(audiences, summarizeAudiences, 'Choose audiences…')}
+      {label}
     </Text>
   )
 }

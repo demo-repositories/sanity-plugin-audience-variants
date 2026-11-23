@@ -70,8 +70,8 @@ export function createSchemaTypes({
     preview: {
       select: {regions: 'regions', audiences: 'audiences'},
       prepare: (sel: {regions?: string[]; audiences?: string[]}) => ({
-        title: summarizeRegions(sel.regions ?? []) || 'No regions selected',
-        subtitle: summarizeAudiences(sel.audiences ?? []) || 'No audiences selected',
+        title: summarizeRegions(sel.regions ?? []),
+        subtitle: summarizeAudiences(sel.audiences ?? []),
       }),
     },
   })
