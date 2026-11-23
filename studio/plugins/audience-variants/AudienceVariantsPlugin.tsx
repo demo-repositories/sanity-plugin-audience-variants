@@ -1,10 +1,10 @@
 import {useEditor, useEditorSelector} from '@portabletext/editor'
-import {BehaviorPlugin} from '@portabletext/editor/plugins'
-import {getSelectedBlocks} from '@portabletext/editor/selectors'
+import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
 import {UsersIcon} from '@sanity/icons/Users'
 import {Button, Card, Flex, Select, Text} from '@sanity/ui'
-import {audienceVariantBehaviors, wrapShortcut} from './behaviors'
+import {audienceVariantBehaviors, getWrappableBlocks, wrapShortcut} from './behaviors'
+import {audienceVariantContainers} from './containers'
 import {WRAP_EVENT} from './constants'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
@@ -12,23 +12,20 @@ import {usePreviewAudience} from './previewAudience'
 const EDITING = ''
 
 /**
- * Portable Text Editor plugin: registers the wrap/unwrap behaviors and renders
- * a bar with the "Wrap in audience variation" action and an editor-wide
+ * Portable Text Editor plugin: registers the behaviors and inline-editing
+ * containers, and renders a bar with the "Wrap in audience variation" action and an editor-wide
  * "Preview as" audience switch.
  */
 export function AudienceVariantsPlugin() {
   const editor = useEditor()
   const {audiences} = useAudienceConfig()
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
-  const canWrap = useEditorSelector(editor, (snapshot) => {
-    const selected = getSelectedBlocks(snapshot)
-    const textBlockType = snapshot.context.schema.block.name
-    return selected.length > 0 && selected.every(({node}) => node._type === textBlockType)
-  })
+  const canWrap = useEditorSelector(editor, (snapshot) => getWrappableBlocks(snapshot) !== null)
 
   return (
     <>
       <BehaviorPlugin behaviors={audienceVariantBehaviors} />
+      <NodePlugin nodes={audienceVariantContainers} />
       <Card
         padding={1}
         radius={2}
