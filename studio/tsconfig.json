@@ -11,7 +11,14 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "noUncheckedSideEffectImports": false,
-    "incremental": true
+    "incremental": true,
+    // Type-check against the plugin's source, not its built dist (see sanity.cli.ts).
+    "paths": {
+      "sanity-plugin-audience-variants": ["../packages/sanity-plugin-audience-variants/src/index.ts"],
+      "sanity-plugin-audience-variants/resolve": [
+        "../packages/sanity-plugin-audience-variants/src/exports/resolve.ts"
+      ]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

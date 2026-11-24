@@ -1,6 +1,6 @@
 import {DocumentTextIcon} from '@sanity/icons/DocumentText'
 import {defineArrayMember, defineField, defineType} from 'sanity'
-import {defineAudienceField, defineAudienceVariantsField} from '../plugins/audience-variants'
+import {defineAudienceField, defineAudienceVariantsField} from 'sanity-plugin-audience-variants'
 import {marriottContent} from './marriottContent'
 
 export const article = defineType({
