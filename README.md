@@ -20,12 +20,12 @@ test Studio (`studio/`) that shows a working setup. The test Studio's schema typ
 
 - A **dimension** is one way readers are described, for example region or audience type.
   You choose the dimensions and their values in the plugin config.
-- A **reader** has exactly one value in every dimension: _EMEA × Franchisees_.
+- A **reader** has exactly one value in every dimension: _EMEA × Partners_.
 - An **audience variation** is a block in the body that holds alternative **sections**.
   Each reader sees at most one of them.
 - A **variant** section picks one or more values in every dimension. It reaches every
-  reader whose value is picked in each dimension, so `regions: [emea, apec]` ×
-  `audiences: [franchisees]` reaches EMEA × Franchisees and APEC × Franchisees.
+  reader whose value is picked in each dimension, so `regions: [emea, apac]` ×
+  `audiences: [partners]` reaches EMEA × Partners and APAC × Partners.
 - A **default** section (optional, at most one per variation) is for readers that no
   variant in that variation reaches.
 - A **document audience** says who a whole document is for. A dimension with nothing
@@ -75,7 +75,7 @@ export const dimensions: AudienceDimension[] = [
     title: 'Regions', // group heading in the picker
     values: [
       {id: 'emea', title: 'Europe, Middle East and Africa (EMEA)', shortTitle: 'EMEA'},
-      {id: 'apec', title: 'Asia Pacific excluding China (APEC)', shortTitle: 'APEC'},
+      {id: 'apac', title: 'Asia Pacific (APAC)', shortTitle: 'APAC'},
       // …
     ],
   },
@@ -83,7 +83,7 @@ export const dimensions: AudienceDimension[] = [
     name: 'audiences',
     title: 'Audiences',
     values: [
-      {id: 'franchisees', title: 'Franchisees & Hotel Partners', shortTitle: 'Franchisees'},
+      {id: 'partners', title: 'Resellers & Partners', shortTitle: 'Partners'},
       // …
     ],
   },
@@ -96,7 +96,7 @@ export const dimensions: AudienceDimension[] = [
 - `allTitle` (optional) is the label shown when every value is picked. It defaults to
   "All regions".
 - The order of dimensions sets the picker's group order and the label order
-  ("EMEA · Franchisees").
+  ("EMEA · Partners").
 
 **Names and ids are stored in content.** Renaming a dimension, changing an id, or
 adding a dimension later means migrating existing documents. Settle on them before you
@@ -207,8 +207,8 @@ examples use `regions` and `audiences`. Your field names are your dimension `nam
     {
       "_type": "audienceVariant",
       "_key": "d4e5f6",
-      "regions": ["emea", "apec"], // one string array per dimension
-      "audiences": ["franchisees"],
+      "regions": ["emea", "apac"], // one string array per dimension
+      "audiences": ["partners"],
       "content": [
         /* Portable Text: blocks plus your `content.of` types */
       ]
@@ -286,11 +286,11 @@ Guidelines:
   separate variations, one after the other (or as plain blocks if one of them reaches
   everyone). Otherwise you break rule 2.
 - **Targeting that isn't a rectangle needs more than one variant.** A variant reaches
-  _every combination_ of its picks. To reach EMEA × Franchisees and APEC × Owners, but
-  not EMEA × Owners, write two variants. They can hold the same content.
+  _every combination_ of its picks. To reach EMEA × Partners and APAC × Customers, but
+  not EMEA × Customers, write two variants. They can hold the same content.
 - **Identical content for several audiences can share one variant**, if the combined
-  readers form a rectangle: EMEA × Franchisees plus APEC × Franchisees becomes
-  `regions: [emea, apec]` × `audiences: [franchisees]`.
+  readers form a rectangle: EMEA × Partners plus APAC × Partners becomes
+  `regions: [emea, apac]` × `audiences: [partners]`.
 - **Carry over any section headings that readers see** as blocks inside each section's
   `content`. The plugin doesn't render a heading of its own.
 - **Generate fresh `_key`s** wherever the same blocks are copied into more than one
@@ -343,7 +343,7 @@ import {audienceMatches, resolveVariation} from 'sanity-plugin-audience-variants
 const dimensions = [{name: 'regions'}, {name: 'audiences'}]
 
 // One value per dimension
-const reader = {regions: 'emea', audiences: 'franchisees'}
+const reader = {regions: 'emea', audiences: 'partners'}
 
 if (!audienceMatches(doc.audience, reader, dimensions)) notFound()
 
@@ -401,4 +401,6 @@ dimension.
 ## Plugin development
 
 See [`packages/sanity-plugin-audience-variants/README.md`](packages/sanity-plugin-audience-variants/README.md).
-`npm run dev` at the repo root starts the test Studio, which loads the plugin from source.
+To run the test Studio, copy `studio/.env.example` to `studio/.env.local` and set your
+project ID and dataset. Then `npm run dev` at the repo root starts the Studio, which loads
+the plugin from source.

@@ -478,7 +478,7 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
 }
 
 /**
- * Who sees a section, as one line of text: "EMEA, APEC · Hotel Owners".
+ * Who sees a section, as one line of text: "EMEA, APAC · Partners".
  * Hovering shows the full names.
  */
 function SectionLabel({

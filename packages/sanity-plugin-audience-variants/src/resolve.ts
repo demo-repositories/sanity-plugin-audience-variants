@@ -177,7 +177,7 @@ export function audienceMatches(
   })
 }
 
-/** "EMEA, APEC · Hotel Owners", or "Default Audience" when nothing is picked. */
+/** "EMEA, APAC · Partners", or "Default Audience" when nothing is picked. */
 export function audienceLabel(
   {dimensions, summarize}: Pick<ResolvedAudienceConfig, 'dimensions' | 'summarize'>,
   value: object | undefined,

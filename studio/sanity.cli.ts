@@ -12,8 +12,8 @@ const toAliasArray = (alias: readonly Alias[] | Record<string, string> | undefin
 
 export default defineCliConfig({
   api: {
-    projectId: 'gbkr8ghe',
-    dataset: 'production',
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID ?? 'your-project-id',
+    dataset: process.env.SANITY_STUDIO_DATASET ?? 'production',
   },
   deployment: {
     /**

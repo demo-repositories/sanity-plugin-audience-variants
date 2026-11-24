@@ -7,38 +7,33 @@ import {bodyContent} from './schemaTypes/bodyContent'
 
 /**
  * Who content can be targeted at. Order sets the picker's groups and the
- * label above each variant ("EMEA · Hotel Owners"). `name` is the field the
+ * label above each variant ("EMEA · Partners"). `name` is the field the
  * picks are stored under, and ids are stored in documents, so changing
  * either means migrating content. `shortTitle` is used in that label.
  *
  * Example values for the test Studio; replace them with your own.
  */
+// Set these in studio/.env.local (see .env.example).
+const projectId = process.env.SANITY_STUDIO_PROJECT_ID ?? 'your-project-id'
+const dataset = process.env.SANITY_STUDIO_DATASET ?? 'production'
+
 const dimensions: AudienceDimension[] = [
   {
     name: 'regions',
     title: 'Regions',
     values: [
-      {id: 'global', title: 'Global'},
-      {id: 'apec', title: 'Asia Pacific excluding China (APEC)', shortTitle: 'APEC'},
-      {id: 'cala', title: 'Caribbean and Latin America (CALA)', shortTitle: 'CALA'},
+      {id: 'americas', title: 'Americas'},
       {id: 'emea', title: 'Europe, Middle East and Africa (EMEA)', shortTitle: 'EMEA'},
-      {id: 'gc', title: 'Greater China (GC)', shortTitle: 'GC'},
-      {id: 'uscan', title: 'U.S. and Canada (US/CAN)', shortTitle: 'US/CAN'},
+      {id: 'apac', title: 'Asia Pacific (APAC)', shortTitle: 'APAC'},
     ],
   },
   {
     name: 'audiences',
     title: 'Audiences',
     values: [
-      {id: 'managedAssociates', title: 'Managed Associates'},
-      {
-        id: 'franchisees',
-        title: 'Franchisees & Hotel Partners',
-        shortTitle: 'Franchisees & Partners',
-      },
-      {id: 'hotelOwners', title: 'Hotel Owners'},
-      {id: 'contractors', title: 'Contractors'},
-      {id: 'contractorBusinessApps', title: 'Contractor Business Apps'},
+      {id: 'customers', title: 'Customers'},
+      {id: 'partners', title: 'Resellers & Partners', shortTitle: 'Partners'},
+      {id: 'employees', title: 'Employees'},
     ],
   },
 ]
@@ -47,8 +42,8 @@ export default defineConfig({
   name: 'default',
   title: 'Audience Variants',
 
-  projectId: 'gbkr8ghe',
-  dataset: 'production',
+  projectId,
+  dataset,
 
   plugins: [
     structureTool(),

@@ -9,7 +9,7 @@ import {useAudienceConfig} from './context'
 import {audienceLabel} from './resolve'
 
 /**
- * A select-style button showing who's picked ("EMEA · Hotel Owners") that
+ * A select-style button showing who's picked ("EMEA · Partners") that
  * opens the checklist of every dimension. Used by the document audience
  * field and the body's "Preview as" bar. Nothing picked shows `emptyLabel`.
  */

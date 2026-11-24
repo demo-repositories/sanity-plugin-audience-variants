@@ -4,8 +4,8 @@ import type {BlockDefinition, defineArrayMember} from 'sanity'
  * Audience configuration.
  *
  * Readers are described by an ordered list of dimensions (e.g. region and
- * audience type). A reader has one value in every dimension (EMEA × Hotel
- * Owners). A variant picks 1+ values in every dimension, and reaches every
+ * audience type). A reader has one value in every dimension (EMEA ×
+ * Partners). A variant picks 1+ values in every dimension, and reaches every
  * reader whose value is picked in each of them.
  *
  * Each dimension is stored as a string array named after it (`regions[]`);
@@ -66,7 +66,7 @@ export type ResolvedAudienceConfig = {
   valueTitle: (dimension: string, id: string) => string
   /** Compact label for a selection: "All regions", or short titles joined. */
   summarize: (dimension: string, ids: string[]) => string
-  /** "EMEA × Hotel Owners" */
+  /** "EMEA × Partners" */
   readerTitle: (reader: Reader) => string
   /** "regions and audiences", for hints. */
   dimensionList: string

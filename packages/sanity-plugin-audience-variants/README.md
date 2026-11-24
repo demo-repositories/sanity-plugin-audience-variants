@@ -6,7 +6,7 @@ frontend picks the section that matches the reader.
 
 You choose the **dimensions** readers are described by: for example region and
 audience type, just audience type, or region, audience type and department. A reader
-has one value in every dimension (e.g. EMEA × Hotel Owners). A variant section picks
+has one value in every dimension (e.g. EMEA × Partners). A variant section picks
 one or more values in every dimension, and reaches every reader whose value is picked
 in each of them. Every variation can also have a default section for readers no
 variant matches.
@@ -37,15 +37,15 @@ export default defineConfig({
           title: 'Regions',
           values: [
             {id: 'emea', title: 'Europe, Middle East and Africa', shortTitle: 'EMEA'},
-            {id: 'apec', title: 'Asia Pacific', shortTitle: 'APEC'},
+            {id: 'apac', title: 'Asia Pacific', shortTitle: 'APAC'},
           ],
         },
         {
           name: 'audiences',
           title: 'Audiences',
           values: [
-            {id: 'owners', title: 'Hotel Owners'},
-            {id: 'associates', title: 'Managed Associates'},
+            {id: 'partners', title: 'Partners'},
+            {id: 'employees', title: 'Employees'},
           ],
         },
       ],
@@ -61,7 +61,7 @@ export default defineConfig({
 
 Each dimension's `name` is the field its picked ids are stored under, so it must be a
 valid field name (and not `content` or `variants`). Dimension order sets the order of
-the picker's groups and of labels like "EMEA · Hotel Owners". `allTitle` is the label
+the picker's groups and of labels like "EMEA · Partners". `allTitle` is the label
 when every value is picked (default "All <title>"); `shortTitle` is used in the compact
 label above each section.
 
@@ -99,7 +99,7 @@ defineType({
   "_type": "audienceVariation",
   "variants": [
     // one string array per dimension, named after it
-    {"_type": "audienceVariant", "regions": ["emea"], "audiences": ["owners"], "content": [/* blocks */]},
+    {"_type": "audienceVariant", "regions": ["emea"], "audiences": ["partners"], "content": [/* blocks */]},
     {"_type": "audienceDefault", "content": [/* blocks */]}
   ]
 }
@@ -119,7 +119,7 @@ import {resolveVariation, audienceMatches} from 'sanity-plugin-audience-variants
 const dimensions = [{name: 'regions'}, {name: 'audiences'}]
 
 // One value per dimension, keyed by dimension name
-const reader = {regions: 'emea', audiences: 'owners'}
+const reader = {regions: 'emea', audiences: 'partners'}
 
 if (!audienceMatches(doc.audience, reader, dimensions)) notFound()
 
