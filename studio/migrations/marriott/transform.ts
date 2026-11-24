@@ -30,11 +30,7 @@
  * before and after; the script exits non-zero if not.
  */
 import {readFileSync, writeFileSync} from 'node:fs'
-import {
-  audiences as configAudiences,
-  dimensions,
-  regions as configRegions,
-} from '../../audienceConfig'
+import {dimensions} from '../../sanity.config'
 import {
   overlappingReaders,
   picksOf,
@@ -78,8 +74,10 @@ const AUDIENCE_MAP: Record<string, string> = {
   'employeeAudienceType-franchisee': 'franchisees',
 }
 
-const allRegionIds = configRegions.map((r) => r.id)
-const allAudienceIds = configAudiences.map((a) => a.id)
+const idsOf = (name: string) =>
+  dimensions.find((d) => d.name === name)?.values.map((v) => v.id) ?? []
+const allRegionIds = idsOf('regions')
+const allAudienceIds = idsOf('audiences')
 
 type Ref = {_ref: string}
 type Block = {_type: string; _key: string; [k: string]: unknown}
