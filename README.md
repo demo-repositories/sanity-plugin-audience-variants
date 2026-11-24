@@ -263,8 +263,124 @@ everyone in EMEA, and an empty or missing field is everyone. The Studio calls th
 
 ## 4. Mapping existing content
 
-Your migration's job is to turn each existing piece of targeted content into one of the
-following:
+Which path you need depends on how your content is targeted today:
+
+- **Content with no audience targeting** (a plain Portable Text body) works as it is.
+  You only change the schema. See [From a plain Portable Text field](#from-a-plain-portable-text-field).
+- **Content that's already targeted** needs a data migration. This covers audience
+  versions stored outside the body, such as an array of sections that each have their
+  own Portable Text and targeting fields. See
+  [From content that's already targeted](#from-content-thats-already-targeted).
+
+### From a plain Portable Text field
+
+A field defined with `defineAudienceVariantsField` is a normal Portable Text array that
+also allows `audienceVariation` blocks. Plain blocks are valid at the top level, so
+**a body with no audience targeting needs no data migration.** Swapping the schema is
+enough.
+
+1. **Swap the schema.** Replace the field with `defineAudienceVariantsField`. Keep the
+   same `name`, and move your existing block options to `block` and your other array
+   members to `of`:
+
+   ```ts
+   // before
+   defineField({
+     name: 'body',
+     type: 'array',
+     of: [
+       defineArrayMember({type: 'block', marks: {annotations: [/* … */]}}),
+       defineArrayMember({type: 'yourImageType'}),
+     ],
+   })
+
+   // after
+   defineAudienceVariantsField({
+     name: 'body',
+     block: {marks: {annotations: [/* … */]}},
+     of: [defineArrayMember({type: 'yourImageType'})],
+   })
+   ```
+
+   If several fields share a named array type (for example `type: 'blockContent'`),
+   replace each field that uses it. Top-level text blocks must have `_type: "block"`. If
+   your existing schema gave the block member its own `name`, rename `_type` in the
+   data too.
+
+2. **Deploy and check.** Existing documents open unchanged. Editors can now wrap blocks
+   in variations themselves (see [What editors get](#what-editors-get)).
+
+3. **Optional: create variations in bulk.** To turn existing blocks into a variation
+   with a script, replace a run of top-level blocks with an `audienceVariation`. The
+   original blocks become the default section, which is what the editor does with
+   Alt+Shift+V. Then add a variant section for each audience-specific version:
+
+   ```ts
+   // migrations/add-variations/index.ts
+   import {at, defineMigration, set} from 'sanity/migrate'
+
+   const key = () => crypto.randomUUID().replaceAll('-', '').slice(0, 12)
+
+   function wrapInVariation(body, from, to, variants) {
+     return [
+       ...body.slice(0, from),
+       {
+         _type: 'audienceVariation',
+         _key: key(),
+         variants: [
+           ...variants, // [{_type: 'audienceVariant', _key: key(), regions: [...], audiences: [...], content: [...]}]
+           {_type: 'audienceDefault', _key: key(), content: body.slice(from, to + 1)},
+         ],
+       },
+       ...body.slice(to + 1),
+     ]
+   }
+
+   export default defineMigration({
+     title: 'Wrap targeted sections in audience variations',
+     documentTypes: ['page'],
+     migrate: {
+       document(doc) {
+         // find the blocks to wrap and build their variants, then:
+         return at('body', set(wrapInVariation(doc.body, from, to, variants)))
+       },
+     },
+   })
+   ```
+
+   `sanity migration run add-variations` does a dry run. Add `--no-dry-run` to write.
+   Everything in a section's `content` must be a `block` or a type in the plugin's
+   `content.of` (rule 6), and every variant must follow the rules in
+   [Data format](#3-data-format).
+
+### From content that's already targeted
+
+If your content is already targeted, you need a transform script that reads your
+current structure and writes the format in [Data format](#3-data-format). A common
+source shape is an array of audience-specific sections next to the body, each with a
+heading, its own Portable Text and references to the audiences it's for:
+
+```jsonc
+"audienceSpecificSections": [
+  {
+    "heading": "…",
+    "body": [/* Portable Text */],
+    "employeeAudienceTypes": [{"_ref": "…"}],
+    "audienceRoles": [],
+    "propertyType": "managed"
+  }
+]
+```
+
+The targeting fields (here `employeeAudienceTypes`, `audienceRoles` and
+`propertyType`) map to dimension values. Each source section's `body` becomes the
+`content` of a variant inside a variation in the main body, and its `heading` (if
+readers see it) becomes a heading block at the top of that `content`. A coding agent can write a
+first version of the script if you give it an example source document, this README and
+your dimension config. Check its output reader by reader (below) before you run it on
+real content.
+
+The script's job is to turn each piece of targeted content into one of the following:
 
 - **plain top-level blocks**, if every reader sees it;
 - **a variant section**, if only some readers see it;
