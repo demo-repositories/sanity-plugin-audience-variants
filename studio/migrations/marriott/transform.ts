@@ -30,9 +30,15 @@
  * before and after; the script exits non-zero if not.
  */
 import {readFileSync, writeFileSync} from 'node:fs'
-import {audiences as configAudiences, regions as configRegions} from '../../audienceConfig'
+import {
+  audiences as configAudiences,
+  dimensions,
+  regions as configRegions,
+} from '../../audienceConfig'
 import {
   overlappingReaders,
+  picksOf,
+  readerKey,
   readersOf,
   resolveVariation,
   type Section,
@@ -93,7 +99,7 @@ type SourceDoc = {
   employeeAudienceTypes?: Ref[]
   audienceSpecificSections?: SourceSection[]
 }
-type Reader = {region: string; audience: string}
+type Reader = {regions: string; audiences: string}
 
 const warnings: string[] = []
 
@@ -210,8 +216,8 @@ const fingerprint = (blocks: unknown) => JSON.stringify(normalize(blocks))
 // Grouping
 
 const overlaps = (a: VariantSection, b: VariantSection) => {
-  const keys = new Set(readersOf(a).map((r) => `${r.region}|${r.audience}`))
-  return readersOf(b).some((r) => keys.has(`${r.region}|${r.audience}`))
+  const keys = new Set(readersOf(a, dimensions).map((r) => readerKey(r, dimensions)))
+  return readersOf(b, dimensions).some((r) => keys.has(readerKey(r, dimensions)))
 }
 
 const sameSet = (a: string[] = [], b: string[] = []) =>
@@ -227,17 +233,18 @@ function mergeIdentical(variants: VariantSection[]): VariantSection[] {
     const twin = out.find(
       (o) =>
         fingerprint(o.content) === fingerprint(v.content) &&
-        (sameSet(o.regions, v.regions) || sameSet(o.audiences, v.audiences)),
+        (sameSet(picksOf(o, 'regions'), picksOf(v, 'regions')) ||
+          sameSet(picksOf(o, 'audiences'), picksOf(v, 'audiences'))),
     )
     if (!twin) {
       out.push(v)
       continue
     }
     twin.regions = allRegionIds.filter(
-      (id) => twin.regions?.includes(id) || v.regions?.includes(id),
+      (id) => picksOf(twin, 'regions').includes(id) || picksOf(v, 'regions').includes(id),
     )
     twin.audiences = allAudienceIds.filter(
-      (id) => twin.audiences?.includes(id) || v.audiences?.includes(id),
+      (id) => picksOf(twin, 'audiences').includes(id) || picksOf(v, 'audiences').includes(id),
     )
   }
   return out
@@ -319,7 +326,7 @@ export function transform(doc: SourceDoc) {
 function sourceView(doc: SourceDoc, reader: Reader): Block[] {
   const visible = (doc.audienceSpecificSections ?? []).filter((s) => {
     const {regions, audiences} = targetingOf(s)
-    return regions.includes(reader.region) && audiences.includes(reader.audience)
+    return regions.includes(reader.regions) && audiences.includes(reader.audiences)
   })
   return [...clean(doc.body ?? []), ...visible.flatMap(sectionContent)]
 }
@@ -328,7 +335,7 @@ function sourceView(doc: SourceDoc, reader: Reader): Block[] {
 function targetView(body: Block[], reader: Reader): Block[] {
   return body.flatMap((b) =>
     b._type === VARIATION_TYPE
-      ? ((resolveVariation(b as unknown as VariationValue, reader)?.content ?? []) as Block[])
+      ? ((resolveVariation(b as unknown as VariationValue, reader, dimensions)?.content ?? []) as Block[])
       : [b],
   )
 }
@@ -337,7 +344,7 @@ function verify(doc: SourceDoc, target: ReturnType<typeof transform>): string[] 
   const errors: string[] = []
   for (const region of allRegionIds) {
     for (const audience of allAudienceIds) {
-      const reader = {region, audience}
+      const reader = {regions: region, audiences: audience}
       if (fingerprint(sourceView(doc, reader)) !== fingerprint(targetView(target.body, reader))) {
         errors.push(`${target._id}: ${region} × ${audience} sees different content`)
       }
@@ -346,9 +353,9 @@ function verify(doc: SourceDoc, target: ReturnType<typeof transform>): string[] 
   for (const b of target.body) {
     if (b._type !== VARIATION_TYPE) continue
     const variation = b as unknown as VariationValue
-    if (overlappingReaders(variation).size) errors.push(`${target._id}: ${b._key} has overlaps`)
+    if (overlappingReaders(variation, dimensions).size) errors.push(`${target._id}: ${b._key} has overlaps`)
     for (const s of variation.variants ?? ([] as Section[])) {
-      if (s._type === VARIANT_TYPE && (!s.regions?.length || !s.audiences?.length)) {
+      if (s._type === VARIANT_TYPE && dimensions.some(({name}) => !picksOf(s, name).length)) {
         errors.push(`${target._id}: ${s._key} is missing regions or audiences`)
       }
     }
@@ -380,7 +387,7 @@ function summarize(target: ReturnType<typeof transform>) {
     for (const s of v.variants ?? []) {
       const vs = s as VariantSection
       lines.push(
-        `    ${v._key} / ${vs._key}: [${vs.regions}] × [${vs.audiences}]  ${vs.content?.length ?? 0} blocks`,
+        `    ${v._key} / ${vs._key}: [${picksOf(vs, 'regions')}] × [${picksOf(vs, 'audiences')}]  ${vs.content?.length ?? 0} blocks`,
       )
     }
   }

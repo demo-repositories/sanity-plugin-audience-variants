@@ -56,9 +56,9 @@ export function defineAudienceVariantsField({
 }
 
 /**
- * Who a whole document is for: regions and audiences, picked the same way
- * as a variant in the body. Empty means the Default Audience (every reader).
- * Stored as `{_type: 'audienceTargeting', regions[], audiences[]}`.
+ * Who a whole document is for: picks in each configured dimension, made the
+ * same way as a variant in the body. Empty means the Default Audience (every
+ * reader). Stored as `{_type: 'audienceTargeting', <dimension>[]…}`.
  *
  * ```ts
  * fields: [defineAudienceField({name: 'audience', title: 'Audience'})]

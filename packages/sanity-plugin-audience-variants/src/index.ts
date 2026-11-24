@@ -10,8 +10,10 @@ export {
   resolveAudienceConfig,
   type AudienceVariantsConfig,
   type AudienceContentConfig,
+  type AudienceDimension,
   type AudienceDimensionValue,
   type Reader,
+  type Selection,
 } from './config'
 export {
   resolveVariation,
@@ -20,6 +22,11 @@ export {
   type AudienceValue,
   variantMatches,
   previewSectionKeys,
+  picksOf,
+  selectionOf,
+  readersOf,
+  allReaders,
+  overlappingReaders,
   type PreviewFilter,
   type VariationValue,
   type Section,

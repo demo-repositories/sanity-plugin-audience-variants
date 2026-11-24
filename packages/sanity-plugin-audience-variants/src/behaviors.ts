@@ -27,7 +27,11 @@ type Keyed = {_key: string}
  * Which `_type`s may live in a section: the text block, plus the object types
  * injected through the plugin's `content.of`.
  */
-export type SectionTypes = {objectTypes: ReadonlySet<string>}
+export type SectionTypes = {
+  objectTypes: ReadonlySet<string>
+  /** Dimension field names; a new variant starts with each one empty. */
+  dimensions: readonly string[]
+}
 
 function allowedInSection(snapshot: EditorSnapshot, types: SectionTypes, type: string) {
   return type === snapshot.context.schema.block.name || types.objectTypes.has(type)
@@ -63,12 +67,21 @@ function emptyTextBlock(snapshot: EditorSnapshot): PortableTextBlock {
   }
 }
 
-function newSection(snapshot: EditorSnapshot, kind: 'default' | 'variant'): Section {
+function newSection(
+  snapshot: EditorSnapshot,
+  kind: 'default' | 'variant',
+  types: SectionTypes,
+): Section {
   const content = [emptyTextBlock(snapshot)]
   const _key = snapshot.context.keyGenerator()
   return kind === 'default'
     ? {_type: DEFAULT_TYPE, _key, content}
-    : {_type: VARIANT_TYPE, _key, regions: [], audiences: [], content}
+    : {_type: VARIANT_TYPE, _key, ...emptyPicks(types), content}
+}
+
+/** `{regions: [], audiences: []}`, with `picks` set in one dimension. */
+function emptyPicks(types: SectionTypes, dimension?: string, picks: string[] = []) {
+  return Object.fromEntries(types.dimensions.map((d) => [d, d === dimension ? picks : []]))
 }
 
 /** Caret at the start of a section's first block. */
@@ -148,19 +161,20 @@ const insertWrapsSelection = (types: SectionTypes) =>
  * A variation inserted empty (e.g. from the toolbar's insert menu) gets a
  * default section with one empty paragraph, so there is somewhere to type.
  */
-const scaffoldInsertedVariation = defineBehavior({
-  on: 'insert.block',
-  guard: ({event}) => {
-    if (event.block._type !== VARIATION_TYPE) return false
-    const variants = (event.block as Partial<VariationValue>).variants
-    return !(Array.isArray(variants) && variants.length > 0)
-  },
-  actions: [
-    ({snapshot, event}) => [
-      raise({...event, block: {...event.block, variants: [newSection(snapshot, 'default')]}}),
+const scaffoldInsertedVariation = (types: SectionTypes) =>
+  defineBehavior({
+    on: 'insert.block',
+    guard: ({event}) => {
+      if (event.block._type !== VARIATION_TYPE) return false
+      const variants = (event.block as Partial<VariationValue>).variants
+      return !(Array.isArray(variants) && variants.length > 0)
+    },
+    actions: [
+      ({snapshot, event}) => [
+        raise({...event, block: {...event.block, variants: [newSection(snapshot, 'default', types)]}}),
+      ],
     ],
-  ],
-})
+  })
 
 /**
  * Replace a variation with its default content as plain blocks. Variants are
@@ -235,49 +249,50 @@ function cloneBlocks(snapshot: EditorSnapshot, blocks: PortableTextBlock[]): Por
  * default last, so the block reads "these audiences get X, everyone else Y".
  * `copyFrom` seeds the new section with another section's content.
  */
-const addSection = defineBehavior({
-  on: ADD_SECTION_EVENT,
-  guard: ({snapshot, event}) => {
-    const {key, kind, copyFrom} = event as {
-      key?: string
-      kind?: 'default' | 'variant'
-      copyFrom?: string
-    }
-    const block = findVariation(snapshot, key ?? '')
-    if (!block || !kind) return false
-    if (kind === 'default' && getDefaultSection(block)) return false
-    const source = copyFrom ? block.variants?.find((s) => s._key === copyFrom) : undefined
-    const section = newSection(snapshot, kind)
-    if (source?.content?.length) section.content = cloneBlocks(snapshot, source.content)
-    return {block, kind, section}
-  },
-  actions: [
-    (_, {block, kind, section}) => {
-      const variationPath: Path = [{_key: block._key}]
-      const sections = block.variants ?? []
-      const sectionPath: Path = [...variationPath, 'variants', {_key: section._key}]
-      // Variants go after the last variant (or before the default if there are
-      // none yet); a default goes at the end.
-      const lastVariant = sections.filter((s) => !isDefaultSection(s)).at(-1)
-      const fallback = getDefaultSection(block)
-      const [anchor, position] =
-        kind === 'variant' && lastVariant
-          ? [lastVariant, 'after' as const]
-          : kind === 'variant' && fallback
-            ? [fallback, 'before' as const]
-            : [sections.at(-1), 'after' as const]
-      const insert = anchor
-        ? raise({
-            type: 'insert',
-            at: [...variationPath, 'variants', {_key: anchor._key}],
-            value: section,
-            position,
-          })
-        : raise({type: 'set', at: [...variationPath, 'variants'], value: [section]})
-      return [insert, ...selectStartOf(sectionPath, section)]
+const addSection = (types: SectionTypes) =>
+  defineBehavior({
+    on: ADD_SECTION_EVENT,
+    guard: ({snapshot, event}) => {
+      const {key, kind, copyFrom} = event as {
+        key?: string
+        kind?: 'default' | 'variant'
+        copyFrom?: string
+      }
+      const block = findVariation(snapshot, key ?? '')
+      if (!block || !kind) return false
+      if (kind === 'default' && getDefaultSection(block)) return false
+      const source = copyFrom ? block.variants?.find((s) => s._key === copyFrom) : undefined
+      const section = newSection(snapshot, kind, types)
+      if (source?.content?.length) section.content = cloneBlocks(snapshot, source.content)
+      return {block, kind, section}
     },
-  ],
-})
+    actions: [
+      (_, {block, kind, section}) => {
+        const variationPath: Path = [{_key: block._key}]
+        const sections = block.variants ?? []
+        const sectionPath: Path = [...variationPath, 'variants', {_key: section._key}]
+        // Variants go after the last variant (or before the default if there are
+        // none yet); a default goes at the end.
+        const lastVariant = sections.filter((s) => !isDefaultSection(s)).at(-1)
+        const fallback = getDefaultSection(block)
+        const [anchor, position] =
+          kind === 'variant' && lastVariant
+            ? [lastVariant, 'after' as const]
+            : kind === 'variant' && fallback
+              ? [fallback, 'before' as const]
+              : [sections.at(-1), 'after' as const]
+        const insert = anchor
+          ? raise({
+              type: 'insert',
+              at: [...variationPath, 'variants', {_key: anchor._key}],
+              value: section,
+              position,
+            })
+          : raise({type: 'set', at: [...variationPath, 'variants'], value: [section]})
+        return [insert, ...selectStartOf(sectionPath, section)]
+      },
+    ],
+  })
 
 /** Remove one section; removing the last one removes the whole variation. */
 const removeSection = defineBehavior({
@@ -308,63 +323,65 @@ const removeSection = defineBehavior({
  * The whole `variants` array is set in one go: the section keeps its key, so
  * the caret and an open picker stay put.
  */
-const convertSection = defineBehavior({
-  on: CONVERT_SECTION_EVENT,
-  guard: ({snapshot, event}) => {
-    const {key, sectionKey, field, ids} = event as {
-      key?: string
-      sectionKey?: string
-      field?: 'regions' | 'audiences'
-      ids?: string[]
-    }
-    const block = findVariation(snapshot, key ?? '')
-    const section = block?.variants?.find((s) => s._key === sectionKey)
-    if (!block || !section) return false
-    const toDefault = !isDefaultSection(section)
-    if (toDefault && getDefaultSection(block)) return false
-    const content = section.content?.length
-      ? section.content
-      : newSection(snapshot, 'default').content
-    const replacement: Section = toDefault
-      ? {_type: DEFAULT_TYPE, _key: section._key, content}
-      : {
-          _type: VARIANT_TYPE,
-          _key: section._key,
-          regions: field === 'regions' ? (ids ?? []) : [],
-          audiences: field === 'audiences' ? (ids ?? []) : [],
-          content,
-        }
-    // Keep the convention: variants first, the default last.
-    const rest = (block.variants ?? []).filter((s) => s._key !== section._key)
-    const variants = toDefault
-      ? [...rest, replacement]
-      : [...rest.filter((s) => !isDefaultSection(s)), replacement]
-    return {at: [{_key: block._key}, 'variants'] as Path, variants}
-  },
-  actions: [(_, {at, variants}) => [raise({type: 'set', at, value: variants})]],
-})
+const convertSection = (types: SectionTypes) =>
+  defineBehavior({
+    on: CONVERT_SECTION_EVENT,
+    guard: ({snapshot, event}) => {
+      const {key, sectionKey, field, ids} = event as {
+        key?: string
+        sectionKey?: string
+        field?: string
+        ids?: string[]
+      }
+      const block = findVariation(snapshot, key ?? '')
+      const section = block?.variants?.find((s) => s._key === sectionKey)
+      if (!block || !section) return false
+      if (field !== undefined && !types.dimensions.includes(field)) return false
+      const toDefault = !isDefaultSection(section)
+      if (toDefault && getDefaultSection(block)) return false
+      const content = section.content?.length
+        ? section.content
+        : newSection(snapshot, 'default', types).content
+      const replacement: Section = toDefault
+        ? {_type: DEFAULT_TYPE, _key: section._key, content}
+        : {
+            _type: VARIANT_TYPE,
+            _key: section._key,
+            ...emptyPicks(types, field, ids),
+            content,
+          }
+      // Keep the convention: variants first, the default last.
+      const rest = (block.variants ?? []).filter((s) => s._key !== section._key)
+      const variants = toDefault
+        ? [...rest, replacement]
+        : [...rest.filter((s) => !isDefaultSection(s)), replacement]
+      return {at: [{_key: block._key}, 'variants'] as Path, variants}
+    },
+    actions: [(_, {at, variants}) => [raise({type: 'set', at, value: variants})]],
+  })
 
-/** Set a variant's `regions` or `audiences` (the picker sends the whole list). */
-const setTargeting = defineBehavior({
-  on: SET_TARGETING_EVENT,
-  guard: ({snapshot, event}) => {
-    const {key, sectionKey, field, ids} = event as {
-      key?: string
-      sectionKey?: string
-      field?: 'regions' | 'audiences'
-      ids?: string[]
-    }
-    const block = findVariation(snapshot, key ?? '')
-    const section = block?.variants?.find((s) => s._key === sectionKey)
-    if (!block || !section || isDefaultSection(section) || !ids) return false
-    if (field !== 'regions' && field !== 'audiences') return false
-    return {
-      at: [{_key: block._key}, 'variants', {_key: section._key}, field] as Path,
-      ids,
-    }
-  },
-  actions: [(_, {at, ids}) => [raise({type: 'set', at, value: ids})]],
-})
+/** Set a variant's picks in one dimension (the picker sends the whole list). */
+const setTargeting = (types: SectionTypes) =>
+  defineBehavior({
+    on: SET_TARGETING_EVENT,
+    guard: ({snapshot, event}) => {
+      const {key, sectionKey, field, ids} = event as {
+        key?: string
+        sectionKey?: string
+        field?: string
+        ids?: string[]
+      }
+      const block = findVariation(snapshot, key ?? '')
+      const section = block?.variants?.find((s) => s._key === sectionKey)
+      if (!block || !section || isDefaultSection(section) || !ids) return false
+      if (!field || !types.dimensions.includes(field)) return false
+      return {
+        at: [{_key: block._key}, 'variants', {_key: section._key}, field] as Path,
+        ids,
+      }
+    },
+    actions: [(_, {at, ids}) => [raise({type: 'set', at, value: ids})]],
+  })
 
 function isSection(node: {_type: string}): node is Section {
   return node._type === VARIANT_TYPE || node._type === DEFAULT_TYPE
@@ -499,11 +516,11 @@ export function createAudienceVariantBehaviors(types: SectionTypes) {
     wrapSelection(types),
     wrapOnShortcut,
     insertWrapsSelection(types),
-    scaffoldInsertedVariation,
+    scaffoldInsertedVariation(types),
     unwrapVariation,
-    addSection,
+    addSection(types),
     removeSection,
-    convertSection,
-    setTargeting,
+    convertSection(types),
+    setTargeting(types),
   ]
 }

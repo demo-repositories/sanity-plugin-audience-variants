@@ -50,10 +50,14 @@ export function AudienceVariantsPlugin() {
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
   useRepairVariations(editor)
-  const {sectionObjectTypes} = useAudienceConfig()
+  const {sectionObjectTypes, dimensions, dimensionList} = useAudienceConfig()
   const behaviors = useMemo(
-    () => createAudienceVariantBehaviors({objectTypes: sectionObjectTypes}),
-    [sectionObjectTypes],
+    () =>
+      createAudienceVariantBehaviors({
+        objectTypes: sectionObjectTypes,
+        dimensions: dimensions.map((d) => d.name),
+      }),
+    [sectionObjectTypes, dimensions],
   )
 
   return (
@@ -92,11 +96,12 @@ export function AudienceVariantsPlugin() {
             <AudienceSelect
               compact
               aria-label="Preview as"
-              regions={previewAudience?.regions ?? []}
-              audiences={previewAudience?.audiences ?? []}
-              onChange={(field, ids) => setPreviewAudience({...previewAudience, [field]: ids})}
+              selection={previewAudience ?? {}}
+              onChange={(dimension, ids) =>
+                setPreviewAudience({...previewAudience, [dimension]: ids})
+              }
               emptyLabel={<Muted>Choose who…</Muted>}
-              hint="See what readers in any of these regions and audiences get. Leave a group empty to include all of it."
+              hint={`See what readers in any of these ${dimensionList} get. Leave a group empty to include all of it.`}
             />
           </Flex>
         </Flex>

@@ -1,8 +1,8 @@
 import {type ObjectFieldProps, type ObjectInputProps, set, setIfMissing, unset} from 'sanity'
-import type {AudienceField} from './AudienceChecklist'
 import {AudienceSelect, Muted} from './AudienceSelect'
 import {AUDIENCE_TYPE, DEFAULT_LABEL} from './constants'
-import type {AudienceValue} from './resolve'
+import {useAudienceConfig} from './context'
+import {selectionOf} from './resolve'
 
 /**
  * Input for the document-level `audienceTargeting` field. Same picker as a
@@ -11,24 +11,24 @@ import type {AudienceValue} from './resolve'
  */
 export function AudienceInput(props: ObjectInputProps) {
   const {onChange, readOnly} = props
-  const value = props.value as AudienceValue | undefined
-  const regions = value?.regions ?? []
-  const audiences = value?.audiences ?? []
+  const {dimensions} = useAudienceConfig()
+  const selection = selectionOf(props.value, dimensions)
 
-  const handleChange = (field: AudienceField, ids: string[]) => {
+  const handleChange = (dimension: string, ids: string[]) => {
     if (ids.length) {
-      onChange([setIfMissing({_type: AUDIENCE_TYPE}), set(ids, [field])])
+      onChange([setIfMissing({_type: AUDIENCE_TYPE}), set(ids, [dimension])])
       return
     }
     // Clearing the last pick returns the field to empty, i.e. the Default Audience.
-    const other = field === 'regions' ? audiences : regions
-    onChange(other.length ? unset([field]) : unset())
+    const othersPicked = dimensions.some(
+      ({name}) => name !== dimension && selection[name].length,
+    )
+    onChange(othersPicked ? unset([dimension]) : unset())
   }
 
   return (
     <AudienceSelect
-      regions={regions}
-      audiences={audiences}
+      selection={selection}
       onChange={handleChange}
       readOnly={readOnly}
       emptyLabel={
@@ -36,7 +36,7 @@ export function AudienceInput(props: ObjectInputProps) {
           {DEFAULT_LABEL} <Muted>· everyone</Muted>
         </>
       }
-      hint="Leave a group empty to include all of it. Leave both empty for the Default Audience: everyone."
+      hint="Leave a group empty to include all of it. Leave everything empty for the Default Audience: everyone."
     />
   )
 }

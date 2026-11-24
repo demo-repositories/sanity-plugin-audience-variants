@@ -11,8 +11,8 @@ import type {PreviewFilter} from './resolve'
  * store per editor instance (both sides get the same instance from
  * `useEditor()`), which also keeps separate PT fields on a page independent.
  *
- * `null` means "editing": no preview. Otherwise
- * at least one region or audience is picked; an empty dimension means "any".
+ * `null` means "editing": no preview. Otherwise at least one value is
+ * picked in some dimension; an empty dimension means "any".
  */
 type Store = {value: PreviewFilter | null; listeners: Set<() => void>}
 
@@ -41,7 +41,7 @@ export function usePreviewAudience(
   const value = useSyncExternalStore(subscribe, () => store.value)
   const setValue = useCallback(
     (filter: PreviewFilter | null) => {
-      store.value = filter?.regions?.length || filter?.audiences?.length ? filter : null
+      store.value = filter && Object.values(filter).some((ids) => ids.length) ? filter : null
       store.listeners.forEach((l) => l())
     },
     [store],

@@ -27,7 +27,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import {AudienceChecklist, type AudienceField} from './AudienceChecklist'
+import {AudienceChecklist} from './AudienceChecklist'
 import {
   ADD_SECTION_EVENT,
   CONVERT_SECTION_EVENT,
@@ -39,17 +39,21 @@ import {
   VARIANT_TYPE,
   VARIATION_TYPE,
 } from './constants'
-import type {AudienceDimensionValue, Reader} from './config'
+import type {AudienceDimensionValue, Reader, Selection} from './config'
 import {useAudienceConfig} from './context'
 import {usePreviewAudience} from './previewAudience'
 import {
+  allReaders,
+  audienceLabel,
   getDefaultSection,
   isDefaultSection,
   overlappingReaders,
+  picksOf,
   readerKey,
   readersOf,
   isExactFilter,
   previewSectionKeys,
+  selectionOf,
   type Section,
   type VariantSection,
   variantSections,
@@ -184,19 +188,14 @@ function VariationContainer({attributes, children, node, readOnly}: ContainerRen
   const value = node as unknown as VariationValue
   const editor = useEditor()
   const [previewAudience] = usePreviewAudience(editor)
-  const {regions: allRegions, audiences: allAudiences} = useAudienceConfig()
+  const {dimensions} = useAudienceConfig()
   const {active, context, setHovered} = useVariationActive(editor, value._key)
   const editing = active && !readOnly
 
   // Preview: plain content only, what the matching readers see. Nothing at
   // all if no section applies to any of them.
   if (previewAudience) {
-    const visible = previewSectionKeys(
-      value,
-      previewAudience,
-      allRegions.map((r) => r.id),
-      allAudiences.map((a) => a.id),
-    )
+    const visible = previewSectionKeys(value, previewAudience, dimensions)
     return (
       <div {...attributes} style={{display: visible.size ? undefined : 'none'}}>
         <VariationActiveContext.Provider value={context}>
@@ -321,8 +320,6 @@ function useParentVariation(editor: Editor, path: ContainerRenderProps['path']) 
   ) as VariationValue | undefined
 }
 
-type Field = AudienceField
-
 /**
  * Which section's picker is open, per editor. Kept outside the picker so it
  * stays open when picking on the default turns that section into a variant
@@ -363,7 +360,7 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   const [previewAudience] = usePreviewAudience(editor)
   const variation = useParentVariation(editor, path)
   const {active} = useContext(VariationActiveContext)
-  const {regions: allRegions, audiences: allAudiences} = useAudienceConfig()
+  const {dimensions} = useAudienceConfig()
 
   const isDefault = isDefaultSection(section)
   // The variation's actions go on the first label line shown: the first
@@ -371,8 +368,7 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   const isTopSection =
     variation !== undefined &&
     (variantSections(variation)[0] ?? getDefaultSection(variation))?._key === section._key
-  const regions = isDefault ? [] : (section.regions ?? [])
-  const audiences = isDefault ? [] : (section.audiences ?? [])
+  const selection = selectionOf(isDefault ? undefined : section, dimensions)
 
   const others = useMemo(
     () => (variation ? variantSections(variation).filter((s) => s._key !== section._key) : []),
@@ -380,31 +376,27 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   )
 
   // The default is only seen by readers no variant reaches; flag it when
-  // every region × audience is already taken.
+  // every reader is already taken.
   const fallbackUnreachable = useMemo(() => {
     if (!isDefault || !variation) return false
-    const reached = new Set(variantSections(variation).flatMap(readersOf).map(readerKey))
-    return (
-      reached.size > 0 &&
-      allRegions.every((r) =>
-        allAudiences.every((a) => reached.has(readerKey({region: r.id, audience: a.id}))),
-      )
+    const reached = new Set(
+      variantSections(variation)
+        .flatMap((s) => readersOf(s, dimensions))
+        .map((r) => readerKey(r, dimensions)),
     )
-  }, [isDefault, variation, allRegions, allAudiences])
+    return (
+      reached.size > 0 && allReaders(dimensions).every((r) => reached.has(readerKey(r, dimensions)))
+    )
+  }, [isDefault, variation, dimensions])
 
   // Preview: show only the sections the matching readers get, without
-  // chrome. When only region or only audience is picked, several sections
+  // chrome. When the filter doesn't pin down one reader, several sections
   // can apply, so each gets a small label saying who it's for.
   if (previewAudience) {
     const visible = variation
-      ? previewSectionKeys(
-          variation,
-          previewAudience,
-          allRegions.map((r) => r.id),
-          allAudiences.map((a) => a.id),
-        )
+      ? previewSectionKeys(variation, previewAudience, dimensions)
       : new Set<string>()
-    const showLabel = !isExactFilter(previewAudience) && visible.size > 1
+    const showLabel = !isExactFilter(previewAudience, dimensions) && visible.size > 1
     return (
       <div
         {...attributes}
@@ -417,8 +409,7 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
           <Chrome style={{paddingTop: 4}}>
             <SectionLabel
               isDefault={isDefault}
-              regions={regions}
-              audiences={audiences}
+              selection={selection}
               overlaps={[]}
               fallbackUnreachable={false}
             />
@@ -432,9 +423,8 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   const label = (
     <SectionLabel
       isDefault={isDefault}
-      regions={regions}
-      audiences={audiences}
-      overlaps={(variation && overlappingReaders(variation).get(section._key)) || []}
+      selection={selection}
+      overlaps={(variation && overlappingReaders(variation, dimensions).get(section._key)) || []}
       fallbackUnreachable={fallbackUnreachable}
     />
   )
@@ -455,8 +445,7 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
             <AudiencePicker
               sectionKey={section._key}
               isDefault={isDefault}
-              regions={regions}
-              audiences={audiences}
+              selection={selection}
               others={others}
               onChange={(field, ids) => {
                 // Picking on the default turns it into a variant for that pick.
@@ -494,19 +483,17 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
  */
 function SectionLabel({
   isDefault,
-  regions,
-  audiences,
+  selection,
   overlaps,
   fallbackUnreachable,
 }: {
   isDefault: boolean
-  regions: string[]
-  audiences: string[]
+  selection: Selection
   overlaps: Reader[]
   fallbackUnreachable: boolean
 }) {
-  const {regionTitle, audienceTitle, summarizeRegions, summarizeAudiences, readerTitle} =
-    useAudienceConfig()
+  const config = useAudienceConfig()
+  const {dimensions, valueTitle, readerTitle} = config
   const style = {fontWeight: 500}
 
   if (isDefault) {
@@ -514,7 +501,7 @@ function SectionLabel({
       <Text
         size={1}
         style={{...style, color: color.caution}}
-        title="Every region and audience already has a variant, so no one sees this content"
+        title="Every reader already has a variant, so no one sees this content"
       >
         {DEFAULT_LABEL} · none left
       </Text>
@@ -525,7 +512,8 @@ function SectionLabel({
     )
   }
 
-  if (!regions.length && !audiences.length) {
+  const picked = dimensions.filter(({name}) => selection[name].length)
+  if (!picked.length) {
     return (
       <Text size={1} style={{...style, color: color.caution}}>
         Set audience variant…
@@ -533,18 +521,12 @@ function SectionLabel({
     )
   }
 
-  // An empty dimension means "any", so only show the dimensions actually chosen.
-  const label = [
-    regions.length ? summarizeRegions(regions) : null,
-    audiences.length ? summarizeAudiences(audiences) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const label = audienceLabel(config, selection)
 
   const title = overlaps.length
     ? `Also reached by another variant: ${overlaps.map(readerTitle).join(', ')}`
-    : [regions.map(regionTitle).join(', '), audiences.map(audienceTitle).join(', ')]
-        .filter(Boolean)
+    : picked
+        .map(({name}) => selection[name].map((id) => valueTitle(name, id)).join(', '))
         .join(' · ')
 
   return (
@@ -630,8 +612,8 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
 }
 
 /**
- * Wraps the section label in a button that opens the picker: regions and
- * audiences as two checkbox groups. A reader may be in only one variant, so
+ * Wraps the section label in a button that opens the picker: one checkbox
+ * group per dimension. A reader may be in only one variant, so
  * an option is disabled when ticking it would reach a reader another variant
  * already reaches.
  */
@@ -639,19 +621,18 @@ function AudiencePicker({
   children,
   sectionKey,
   isDefault,
-  regions,
-  audiences,
+  selection,
   others,
   onChange,
 }: {
   children: ReactNode
   sectionKey: string
   isDefault: boolean
-  regions: string[]
-  audiences: string[]
+  selection: Selection
   others: VariantSection[]
-  onChange: (field: Field, ids: string[]) => void
+  onChange: (dimension: string, ids: string[]) => void
 }) {
+  const {dimensions, dimensionList} = useAudienceConfig()
   const {hold} = useContext(VariationActiveContext)
   const [open, setOpen] = useOpenPicker(useEditor(), sectionKey)
   const [button, setButton] = useState<HTMLElement | null>(null)
@@ -672,17 +653,21 @@ function AudiencePicker({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, setOpen])
 
-  const selected = {regions, audiences}
-  const otherField = (field: Field): Field => (field === 'regions' ? 'audiences' : 'regions')
-
-  /** Why ticking `value` isn't allowed: it would reach a reader another variant reaches. */
-  const takenBy = (field: Field, value: AudienceDimensionValue) =>
+  /**
+   * Why ticking `value` isn't allowed: it would reach a reader another
+   * variant reaches, i.e. that variant has `value` and shares a pick with
+   * this one in every other dimension.
+   */
+  const takenBy = (dimension: string, value: AudienceDimensionValue) =>
     others.some(
       (o) =>
-        o[field]?.includes(value.id) &&
-        o[otherField(field)]?.some((x) => selected[otherField(field)].includes(x)),
+        picksOf(o, dimension).includes(value.id) &&
+        dimensions.every(
+          ({name}) =>
+            name === dimension || picksOf(o, name).some((id) => selection[name].includes(id)),
+        ),
     )
-      ? `Another variant already reaches ${value.title} for some of the selected ${otherField(field)}`
+      ? `Another variant already reaches ${value.title} with the current picks`
       : undefined
 
   return (
@@ -693,14 +678,15 @@ function AudiencePicker({
       ref={setPopover}
       content={
         <AudienceChecklist
-          regions={regions}
-          audiences={audiences}
+          selection={selection}
           onChange={onChange}
           takenBy={takenBy}
           hint={
             isDefault
-              ? 'Pick regions and audiences to show this only to them. Readers no variant targets will see nothing here.'
-              : 'Shown to readers in any of these regions who are in any of these audiences.'
+              ? `Pick ${dimensionList} to show this only to them. Readers no variant targets will see nothing here.`
+              : dimensions.length > 1
+                ? `Shown to readers who match a pick in each of ${dimensionList}.`
+                : `Shown to readers in any of these ${dimensionList}.`
           }
         />
       }
@@ -709,7 +695,7 @@ function AudiencePicker({
       <button
         ref={setButton}
         type="button"
-        title="Change regions and audiences"
+        title={`Change ${dimensionList}`}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         onMouseEnter={() => setHover(true)}
