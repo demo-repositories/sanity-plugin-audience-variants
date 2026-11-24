@@ -11,10 +11,9 @@ import {marriottContent} from './schemaTypes/marriottContent'
  * picks are stored under, and ids are stored in documents, so changing
  * either means migrating content. `shortTitle` is used in that label.
  *
- * Exported for migration scripts. Ids are placeholders until we have the
- * real ones from the existing schema; titles match the current Studio.
+ * Ids are placeholders; titles match Marriott's current Studio.
  */
-export const dimensions: AudienceDimension[] = [
+const dimensions: AudienceDimension[] = [
   {
     name: 'regions',
     title: 'Regions',

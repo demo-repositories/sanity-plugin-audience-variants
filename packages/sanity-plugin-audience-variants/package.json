@@ -32,7 +32,8 @@
     "build": "pkg-utils build --strict --check",
     "watch": "pkg-utils watch",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepack": "npm run build && node scripts/pack-exports.mjs apply",
+    "postpack": "node scripts/pack-exports.mjs restore"
   },
   "dependencies": {
     "@portabletext/keyboard-shortcuts": "^3.0.1",

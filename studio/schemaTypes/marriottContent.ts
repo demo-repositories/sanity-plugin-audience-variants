@@ -6,8 +6,8 @@ import type {AudienceContentConfig} from 'sanity-plugin-audience-variants'
 
 /**
  * Marriott's Portable Text types, in the shape their existing dataset stores
- * them (see the Awards & Recognition export). Stand-ins for testing a
- * migration: the real definitions live in Marriott's Studio.
+ * them (see the Awards & Recognition export). Stand-ins for testing: the
+ * real definitions live in Marriott's Studio.
  */
 
 /** An image hosted outside Sanity, referenced by URL. */

@@ -151,5 +151,12 @@ npm version <patch|minor|major>
 npm publish
 ```
 
-`prepublishOnly` builds first. `publishConfig.exports` makes sure the published
-package points at `dist/`, not `src/`.
+`prepack` builds first, for both `npm pack` and `npm publish`. It then swaps in
+`publishConfig.exports`, which npm otherwise ignores, so the packed `package.json`
+points only at `dist/`. `postpack` restores the original.
+
+To build the tarball shipped in this repo:
+
+```sh
+npm pack --pack-destination ../../release
+```
