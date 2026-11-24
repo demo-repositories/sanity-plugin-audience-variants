@@ -2,7 +2,7 @@ import {ImageIcon} from '@sanity/icons/Image'
 import {LinkIcon} from '@sanity/icons/Link'
 import {ThListIcon} from '@sanity/icons/ThList'
 import {defineArrayMember, defineField, defineType} from 'sanity'
-import type {AudienceContentConfig} from '../plugins/audience-variants'
+import type {AudienceContentConfig} from 'sanity-plugin-audience-variants'
 
 /**
  * Marriott's Portable Text types, in the shape their existing dataset stores

@@ -1,0 +1,66 @@
+{
+  "name": "sanity-plugin-audience-variants",
+  "version": "0.1.0",
+  "description": "Audience-targeted variations inside Portable Text, edited inline in Sanity Studio",
+  "keywords": [
+    "sanity",
+    "sanity-plugin",
+    "portable-text",
+    "personalization",
+    "audience"
+  ],
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./resolve": {
+      "source": "./src/exports/resolve.ts",
+      "default": "./dist/resolve.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "pkg-utils build --strict --check",
+    "watch": "pkg-utils watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@portabletext/keyboard-shortcuts": "^3.0.1",
+    "@sanity/icons": "^5.4.0",
+    "@sanity/ui": "^4.4.12"
+  },
+  "peerDependencies": {
+    "@portabletext/editor": "^8.2.15",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sanity": "^6.24.0",
+    "styled-components": "^6.1.18"
+  },
+  "devDependencies": {
+    "@sanity/browserslist-config": "^1.0.5",
+    "@sanity/pkg-utils": "^14.0.0",
+    "@types/react": "^19.2.14",
+    "typescript": "~6.0"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./resolve": "./dist/resolve.js",
+      "./package.json": "./package.json"
+    }
+  },
+  "browserslist": "extends @sanity/browserslist-config"
+}

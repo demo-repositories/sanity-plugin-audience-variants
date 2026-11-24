@@ -38,12 +38,10 @@ import {
   type Section,
   type VariantSection,
   type VariationValue,
-} from '../../plugins/audience-variants/resolve'
-import {
   AUDIENCE_TYPE,
   VARIANT_TYPE,
   VARIATION_TYPE,
-} from '../../plugins/audience-variants/constants'
+} from 'sanity-plugin-audience-variants/resolve'
 
 const args = process.argv.slice(2).filter((a) => a !== '--')
 const WEAK_REFS = args.includes('--weak-refs')

@@ -1,0 +1,9 @@
+{
+  "name": "marriott-audience-variants",
+  "private": true,
+  "workspaces": ["packages/*", "studio"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev -w studio"
+  }
+}

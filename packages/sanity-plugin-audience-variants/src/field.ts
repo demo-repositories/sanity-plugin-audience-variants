@@ -22,7 +22,7 @@ export type AudienceVariantsFieldOptions = Omit<ArrayDefinition, 'type' | 'of' |
     of?: ArrayMember[]
     /**
      * Turn on Sanity's table editing. The schema must declare a `table` type
-     * (table > rows > row > cells > cell > value) and `of` must include it.
+     * (table → rows → row → cells → cell → value) and `of` must include it.
      */
     tables?: boolean
   }

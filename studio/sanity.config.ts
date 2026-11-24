@@ -2,7 +2,7 @@ import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
 import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes'
-import {audienceVariants} from './plugins/audience-variants'
+import {audienceVariants} from 'sanity-plugin-audience-variants'
 import {marriottContent} from './schemaTypes/marriottContent'
 import {audiences, regions} from './audienceConfig'
 

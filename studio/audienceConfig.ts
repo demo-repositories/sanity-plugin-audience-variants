@@ -1,4 +1,4 @@
-import type {AudienceDimensionValue} from './plugins/audience-variants'
+import type {AudienceDimensionValue} from 'sanity-plugin-audience-variants'
 
 /**
  * Regions and audience types, shared by the Studio config and migration
