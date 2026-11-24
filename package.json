@@ -1,5 +1,5 @@
 {
-  "name": "marriott-audience-variants",
+  "name": "audience-variants",
   "private": true,
   "workspaces": ["packages/*", "studio"],
   "scripts": {

@@ -1,7 +1,7 @@
 import {DocumentTextIcon} from '@sanity/icons/DocumentText'
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import {defineAudienceField, defineAudienceVariantsField} from 'sanity-plugin-audience-variants'
-import {marriottContent} from './marriottContent'
+import {bodyContent} from './bodyContent'
 
 export const article = defineType({
   name: 'article',
@@ -23,8 +23,8 @@ export const article = defineType({
     defineAudienceVariantsField({
       name: 'body',
       title: 'Body',
-      block: marriottContent.block,
-      of: [...marriottContent.of, defineArrayMember({type: 'table'})],
+      block: bodyContent.block,
+      of: [...bodyContent.of, defineArrayMember({type: 'table'})],
       tables: true,
     }),
   ],

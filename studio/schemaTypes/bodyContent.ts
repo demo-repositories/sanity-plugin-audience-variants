@@ -5,9 +5,8 @@ import {defineArrayMember, defineField, defineType} from 'sanity'
 import type {AudienceContentConfig} from 'sanity-plugin-audience-variants'
 
 /**
- * Marriott's Portable Text types, in the shape their existing dataset stores
- * them (see the Awards & Recognition export). Stand-ins for testing: the
- * real definitions live in Marriott's Studio.
+ * Example Portable Text types for the test Studio: an external image, a plain
+ * table and two link annotations. In your Studio, use your own.
  */
 
 /** An image hosted outside Sanity, referenced by URL. */
@@ -67,7 +66,7 @@ export const tableBlock = defineType({
  * Text block settings and extra block types, shared by the top level of the
  * body and by variant sections. Add a type here and both levels allow it.
  */
-export const marriottContent = {
+export const bodyContent = {
   block: {
     marks: {
       annotations: [

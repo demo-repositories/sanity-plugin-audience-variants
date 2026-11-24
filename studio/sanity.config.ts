@@ -3,7 +3,7 @@ import {structureTool} from 'sanity/structure'
 import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes'
 import {audienceVariants, type AudienceDimension} from 'sanity-plugin-audience-variants'
-import {marriottContent} from './schemaTypes/marriottContent'
+import {bodyContent} from './schemaTypes/bodyContent'
 
 /**
  * Who content can be targeted at. Order sets the picker's groups and the
@@ -11,7 +11,7 @@ import {marriottContent} from './schemaTypes/marriottContent'
  * picks are stored under, and ids are stored in documents, so changing
  * either means migrating content. `shortTitle` is used in that label.
  *
- * Ids are placeholders; titles match Marriott's current Studio.
+ * Example values for the test Studio; replace them with your own.
  */
 const dimensions: AudienceDimension[] = [
   {
@@ -30,11 +30,7 @@ const dimensions: AudienceDimension[] = [
     name: 'audiences',
     title: 'Audiences',
     values: [
-      {
-        id: 'managedAssociates',
-        title: 'Marriott International Managed Associates',
-        shortTitle: 'Managed Associates',
-      },
+      {id: 'managedAssociates', title: 'Managed Associates'},
       {
         id: 'franchisees',
         title: 'Franchisees & Hotel Partners',
@@ -49,7 +45,7 @@ const dimensions: AudienceDimension[] = [
 
 export default defineConfig({
   name: 'default',
-  title: 'MarriottAudienceVariantsPTE',
+  title: 'Audience Variants',
 
   projectId: 'gbkr8ghe',
   dataset: 'production',
@@ -61,7 +57,7 @@ export default defineConfig({
       dimensions,
       // What variant sections may contain, besides text. Sanity's `table`
       // stays top-level only until it's been tested inside variants.
-      content: marriottContent,
+      content: bodyContent,
     }),
   ],
 
