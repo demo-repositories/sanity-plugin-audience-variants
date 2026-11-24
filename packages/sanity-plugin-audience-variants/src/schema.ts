@@ -1,9 +1,9 @@
 import {UsersIcon} from '@sanity/icons/Users'
 import {defineArrayMember, defineField, defineType} from 'sanity'
-import type {AudienceContentConfig, Reader, ResolvedAudienceConfig} from './config'
+import type {AudienceContentConfig, AudienceDimension, Reader, ResolvedAudienceConfig} from './config'
 import {AudienceFieldComponent, AudienceInput} from './AudienceInput'
 import {AUDIENCE_TYPE, DEFAULT_TYPE, VARIANT_TYPE, VARIATION_TYPE} from './constants'
-import {audienceLabel, overlappingReaders, readerKey, type Section} from './resolve'
+import {audienceLabel, overlappingReaders, picksOf, readerKey, type Section} from './resolve'
 
 const PLUGIN_TYPES: string[] = [VARIATION_TYPE, VARIANT_TYPE, DEFAULT_TYPE, AUDIENCE_TYPE]
 
@@ -22,25 +22,39 @@ function sectionContent({block, of = []}: AudienceContentConfig) {
   return [defineArrayMember({...block, type: 'block'}), ...of]
 }
 
+/** One string-array field per dimension, listing its values. */
+function dimensionFields(dimensions: AudienceDimension[], required: boolean) {
+  return dimensions.map(({name, title, values}) =>
+    defineField({
+      name,
+      title,
+      type: 'array',
+      of: [defineArrayMember({type: 'string'})],
+      options: {list: values.map((v) => ({value: v.id, title: v.title}))},
+      validation: (rule) => (required ? rule.required().min(1).unique() : rule.unique()),
+    }),
+  )
+}
+
+/** Preview `select` for every dimension field. */
+function selectDimensions(dimensions: AudienceDimension[]) {
+  return Object.fromEntries(dimensions.map(({name}) => [name, name]))
+}
+
 /**
  * Builds the plugin's object types for a given audience config.
  *
  * Shape (both levels are edited inline as Portable Text containers):
  *   audienceVariation.variants[]
  *     audienceDefault {content[]}          optional, at most one
- *     audienceVariant {regions[], audiences[], content[]}
+ *     audienceVariant {<dimension>[]…, content[]}
  *
- * Plus `audienceTargeting {regions[], audiences[]}` for a whole document's
- * audience (see `defineAudienceField`).
+ * Plus `audienceTargeting {<dimension>[]…}` for a whole document's audience
+ * (see `defineAudienceField`). Each dimension in the config becomes a
+ * string-array field named after it.
  */
-export function createSchemaTypes({
-  regions,
-  audiences,
-  content,
-  summarizeRegions,
-  summarizeAudiences,
-  readerTitle,
-}: ResolvedAudienceConfig) {
+export function createSchemaTypes(config: ResolvedAudienceConfig) {
+  const {dimensions, content, summarize, readerTitle} = config
   const nestedContent = sectionContent(content)
 
   const audienceDefault = defineType({
@@ -65,22 +79,7 @@ export function createSchemaTypes({
     type: 'object',
     icon: UsersIcon,
     fields: [
-      defineField({
-        name: 'regions',
-        title: 'Regions',
-        type: 'array',
-        of: [defineArrayMember({type: 'string'})],
-        options: {list: regions.map((r) => ({value: r.id, title: r.title}))},
-        validation: (rule) => rule.required().min(1).unique(),
-      }),
-      defineField({
-        name: 'audiences',
-        title: 'Audiences',
-        type: 'array',
-        of: [defineArrayMember({type: 'string'})],
-        options: {list: audiences.map((a) => ({value: a.id, title: a.title}))},
-        validation: (rule) => rule.required().min(1).unique(),
-      }),
+      ...dimensionFields(dimensions, true),
       defineField({
         name: 'content',
         title: 'Content',
@@ -89,11 +88,11 @@ export function createSchemaTypes({
       }),
     ],
     preview: {
-      select: {regions: 'regions', audiences: 'audiences'},
-      prepare: (sel: {regions?: string[]; audiences?: string[]}) => ({
-        title: summarizeRegions(sel.regions ?? []),
-        subtitle: summarizeAudiences(sel.audiences ?? []),
-      }),
+      select: selectDimensions(dimensions),
+      prepare: (sel: Record<string, unknown>) => {
+        const [first, ...rest] = dimensions.map(({name}) => summarize(name, picksOf(sel, name)))
+        return {title: first, subtitle: rest.join(' · ') || undefined}
+      },
     },
   })
 
@@ -116,14 +115,13 @@ export function createSchemaTypes({
             }
             // A reader may only be reached by one variant per variation, so
             // they always resolve to at most one variant.
-            const overlaps = overlappingReaders({
-              _type: VARIATION_TYPE,
-              _key: '',
-              variants: sections,
-            })
+            const overlaps = overlappingReaders(
+              {_type: VARIATION_TYPE, _key: '', variants: sections},
+              dimensions,
+            )
             if (overlaps.size) {
               const unique = new Map<string, Reader>()
-              for (const r of [...overlaps.values()].flat()) unique.set(readerKey(r), r)
+              for (const r of [...overlaps.values()].flat()) unique.set(readerKey(r, dimensions), r)
               const names = [...unique.values()].map(readerTitle).join(', ')
               return `Reached by more than one variant: ${names}`
             }
@@ -146,29 +144,10 @@ export function createSchemaTypes({
     type: 'object',
     icon: UsersIcon,
     components: {input: AudienceInput, field: AudienceFieldComponent},
-    fields: [
-      defineField({
-        name: 'regions',
-        title: 'Regions',
-        type: 'array',
-        of: [defineArrayMember({type: 'string'})],
-        options: {list: regions.map((r) => ({value: r.id, title: r.title}))},
-        validation: (rule) => rule.unique(),
-      }),
-      defineField({
-        name: 'audiences',
-        title: 'Audiences',
-        type: 'array',
-        of: [defineArrayMember({type: 'string'})],
-        options: {list: audiences.map((a) => ({value: a.id, title: a.title}))},
-        validation: (rule) => rule.unique(),
-      }),
-    ],
+    fields: dimensionFields(dimensions, false),
     preview: {
-      select: {regions: 'regions', audiences: 'audiences'},
-      prepare: (sel: {regions?: string[]; audiences?: string[]}) => ({
-        title: audienceLabel({summarizeRegions, summarizeAudiences}, sel),
-      }),
+      select: selectDimensions(dimensions),
+      prepare: (sel: Record<string, unknown>) => ({title: audienceLabel(config, sel)}),
     },
   })
 

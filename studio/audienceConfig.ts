@@ -1,8 +1,8 @@
-import type {AudienceDimensionValue} from 'sanity-plugin-audience-variants'
+import type {AudienceDimension, AudienceDimensionValue} from 'sanity-plugin-audience-variants'
 
 /**
- * Regions and audience types, shared by the Studio config and migration
- * scripts. Ids are placeholders until we have the real ones from the existing
+ * Marriott's audience dimensions: regions and audience types, shared by the
+ * Studio config and migration scripts. Ids are placeholders until we have the real ones from the existing
  * schema; titles match the current Studio. `shortTitle` is used in the
  * one-line label above each variant.
  */
@@ -29,4 +29,13 @@ export const audiences: AudienceDimensionValue[] = [
   {id: 'hotelOwners', title: 'Hotel Owners'},
   {id: 'contractors', title: 'Contractors'},
   {id: 'contractorBusinessApps', title: 'Contractor Business Apps'},
+]
+
+/**
+ * Order sets the picker's groups and the label ("EMEA · Hotel Owners").
+ * Names are the stored field names on variants and document audiences.
+ */
+export const dimensions: AudienceDimension[] = [
+  {name: 'regions', title: 'Regions', values: regions},
+  {name: 'audiences', title: 'Audiences', values: audiences},
 ]

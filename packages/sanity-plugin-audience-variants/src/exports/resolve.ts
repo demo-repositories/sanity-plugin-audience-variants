@@ -12,7 +12,10 @@ export {
   resolveAudienceConfig,
   type AudienceVariantsConfig,
   type AudienceContentConfig,
+  type AudienceDimension,
   type AudienceDimensionValue,
   type Reader,
+  type Selection,
+  type DimensionNames,
   type ResolvedAudienceConfig,
 } from '../config'

@@ -3,18 +3,18 @@ import {UsersIcon} from '@sanity/icons/Users'
 import {Box, Card, Flex, Text, useClickOutsideEvent} from '@sanity/ui'
 import {Popover} from '@sanity/ui/popover'
 import {type ReactNode, useEffect, useState} from 'react'
-import {AudienceChecklist, type AudienceField} from './AudienceChecklist'
+import {AudienceChecklist} from './AudienceChecklist'
+import type {Selection} from './config'
 import {useAudienceConfig} from './context'
 import {audienceLabel} from './resolve'
 
 /**
  * A select-style button showing who's picked ("EMEA · Hotel Owners") that
- * opens the region and audience checklists. Used by the document audience
+ * opens the checklist of every dimension. Used by the document audience
  * field and the body's "Preview as" bar. Nothing picked shows `emptyLabel`.
  */
 export function AudienceSelect({
-  regions,
-  audiences,
+  selection,
   onChange,
   readOnly,
   hint,
@@ -22,9 +22,8 @@ export function AudienceSelect({
   compact,
   'aria-label': ariaLabel,
 }: {
-  regions: string[]
-  audiences: string[]
-  onChange: (field: AudienceField, ids: string[]) => void
+  selection: Selection
+  onChange: (dimension: string, ids: string[]) => void
   readOnly?: boolean
   hint?: ReactNode
   /** Label when nothing is picked; may include muted parts. */
@@ -45,7 +44,7 @@ export function AudienceSelect({
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const empty = !regions.length && !audiences.length
+  const empty = !Object.values(selection).some((ids) => ids.length)
 
   return (
     <Popover
@@ -56,8 +55,7 @@ export function AudienceSelect({
       ref={setPopover}
       content={
         <AudienceChecklist
-          regions={regions}
-          audiences={audiences}
+          selection={selection}
           onChange={onChange}
           disabled={readOnly}
           hint={hint}
@@ -92,7 +90,7 @@ export function AudienceSelect({
           </Text>
           <Box flex={1} style={{minWidth: 0}}>
             <Text size={1} textOverflow="ellipsis">
-              {empty ? emptyLabel : audienceLabel(config, {regions, audiences})}
+              {empty ? emptyLabel : audienceLabel(config, selection)}
             </Text>
           </Box>
           {!readOnly && (

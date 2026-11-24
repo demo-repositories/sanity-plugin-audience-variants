@@ -1,44 +1,40 @@
 import {Box, Button, Card, Checkbox, Flex, Stack, Text} from '@sanity/ui'
-import {type ReactNode, useState} from 'react'
-import type {AudienceDimensionValue} from './config'
+import {Fragment, type ReactNode, useState} from 'react'
+import type {AudienceDimension, AudienceDimensionValue, Selection} from './config'
 import {useAudienceConfig} from './context'
 
-export type AudienceField = 'regions' | 'audiences'
-
 /**
- * Popover body for picking who sees something: regions and audiences as two
- * groups of selectable rows, each with a count and an All / Clear toggle,
- * and a short hint underneath. Shared by the variant picker in the body and
- * the document-level audience field, so both pick audiences the same way.
+ * Popover body for picking who sees something: one group of selectable rows
+ * per dimension (regions, audiences…), each with a count and an All / Clear
+ * toggle, and a short hint underneath. Shared by the variant picker in the
+ * body and the document-level audience field, so both pick audiences the
+ * same way.
  *
  * `takenBy` lets the caller block options (the variant picker uses it so a
  * reader is never reached by two variants); it returns a reason or nothing.
  */
 export function AudienceChecklist({
-  regions,
-  audiences,
+  selection,
   onChange,
   takenBy,
   disabled,
   hint,
 }: {
-  regions: string[]
-  audiences: string[]
-  onChange: (field: AudienceField, ids: string[]) => void
-  takenBy?: (field: AudienceField, value: AudienceDimensionValue) => string | undefined
+  selection: Selection
+  onChange: (dimension: string, ids: string[]) => void
+  takenBy?: (dimension: string, value: AudienceDimensionValue) => string | undefined
   disabled?: boolean
   hint?: ReactNode
 }) {
-  const config = useAudienceConfig()
-  const selected = {regions, audiences}
+  const {dimensions} = useAudienceConfig()
 
-  const group = (field: AudienceField, heading: string, values: AudienceDimensionValue[]) => {
-    const ids = selected[field]
+  const group = ({name, title, values}: AudienceDimension) => {
+    const ids = selection[name] ?? []
     const count = values.filter((v) => ids.includes(v.id)).length
     const allOn = count === values.length
     const toggle = (id: string) =>
-      onChange(field, ids.includes(id) ? ids.filter((s) => s !== id) : [...ids, id])
-    const free = values.filter((v) => ids.includes(v.id) || !takenBy?.(field, v))
+      onChange(name, ids.includes(id) ? ids.filter((s) => s !== id) : [...ids, id])
+    const free = values.filter((v) => ids.includes(v.id) || !takenBy?.(name, v))
     return (
       <Stack gap={1}>
         <Flex align="center" gap={2} paddingLeft={2} paddingBottom={1}>
@@ -49,7 +45,7 @@ export function AudienceChecklist({
               muted
               style={{textTransform: 'uppercase', letterSpacing: '0.06em'}}
             >
-              {heading}
+              {title}
             </Text>
           </Box>
           {count > 0 && (
@@ -64,7 +60,7 @@ export function AudienceChecklist({
             tone="primary"
             disabled={disabled}
             text={allOn ? 'Clear' : 'Select all'}
-            onClick={() => onChange(field, allOn ? [] : free.map((v) => v.id))}
+            onClick={() => onChange(name, allOn ? [] : free.map((v) => v.id))}
           />
         </Flex>
         {values.map((v) => (
@@ -73,7 +69,7 @@ export function AudienceChecklist({
             title={v.title}
             checked={ids.includes(v.id)}
             disabled={disabled}
-            reason={ids.includes(v.id) ? undefined : takenBy?.(field, v)}
+            reason={ids.includes(v.id) ? undefined : takenBy?.(name, v)}
             onToggle={() => toggle(v.id)}
           />
         ))}
@@ -84,9 +80,12 @@ export function AudienceChecklist({
   return (
     <Card radius={3} style={{width: 340, maxWidth: 'calc(100vw - 32px)'}}>
       <Stack gap={3} padding={2} paddingTop={3}>
-        {group('regions', 'Regions', config.regions)}
-        <Card borderTop marginX={2} />
-        {group('audiences', 'Audiences', config.audiences)}
+        {dimensions.map((dimension, i) => (
+          <Fragment key={dimension.name}>
+            {i > 0 && <Card borderTop marginX={2} />}
+            {group(dimension)}
+          </Fragment>
+        ))}
       </Stack>
       {hint && (
         <Card borderTop paddingX={4} paddingY={3} tone="transparent" radius={3}>

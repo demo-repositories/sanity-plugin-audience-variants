@@ -4,10 +4,12 @@ Audience-targeted variations inside Portable Text. Editors wrap part of a body i
 variation and write one section per audience, inline in the Studio editor; the
 frontend picks the section that matches the reader.
 
-A reader is one **region** plus one **audience** (e.g. EMEA × Hotel Owners). A variant
-section targets one or more regions and one or more audiences, and reaches every
-reader in any of its regions _and_ any of its audiences. Leaving a dimension empty
-means "any". Every variation also has a default section for readers no variant matches.
+You choose the **dimensions** readers are described by: for example region and
+audience type, just audience type, or region, audience type and department. A reader
+has one value in every dimension (e.g. EMEA × Hotel Owners). A variant section picks
+one or more values in every dimension, and reaches every reader whose value is picked
+in each of them. Every variation can also have a default section for readers no
+variant matches.
 
 ## Install
 
@@ -29,13 +31,23 @@ export default defineConfig({
   // …
   plugins: [
     audienceVariants({
-      regions: [
-        {id: 'emea', title: 'Europe, Middle East and Africa', shortTitle: 'EMEA'},
-        {id: 'apec', title: 'Asia Pacific', shortTitle: 'APEC'},
-      ],
-      audiences: [
-        {id: 'owners', title: 'Hotel Owners'},
-        {id: 'associates', title: 'Managed Associates'},
+      dimensions: [
+        {
+          name: 'regions',
+          title: 'Regions',
+          values: [
+            {id: 'emea', title: 'Europe, Middle East and Africa', shortTitle: 'EMEA'},
+            {id: 'apec', title: 'Asia Pacific', shortTitle: 'APEC'},
+          ],
+        },
+        {
+          name: 'audiences',
+          title: 'Audiences',
+          values: [
+            {id: 'owners', title: 'Hotel Owners'},
+            {id: 'associates', title: 'Managed Associates'},
+          ],
+        },
       ],
       // Optional: what variant sections may contain besides text.
       content: {
@@ -47,8 +59,14 @@ export default defineConfig({
 })
 ```
 
-`shortTitle` is used in the compact label above each section. Ids are stored in
-documents, so changing them later means migrating content.
+Each dimension's `name` is the field its picked ids are stored under, so it must be a
+valid field name (and not `content` or `variants`). Dimension order sets the order of
+the picker's groups and of labels like "EMEA · Hotel Owners". `allTitle` is the label
+when every value is picked (default "All <title>"); `shortTitle` is used in the compact
+label above each section.
+
+Names and ids are stored in documents, so renaming them, or adding a dimension that
+existing variants don't have, means migrating content.
 
 Then add fields to your document types:
 
@@ -80,12 +98,13 @@ defineType({
 {
   "_type": "audienceVariation",
   "variants": [
+    // one string array per dimension, named after it
     {"_type": "audienceVariant", "regions": ["emea"], "audiences": ["owners"], "content": [/* blocks */]},
     {"_type": "audienceDefault", "content": [/* blocks */]}
   ]
 }
 
-// defineAudienceField
+// defineAudienceField: an empty dimension means "any"
 {"_type": "audienceTargeting", "regions": ["emea"], "audiences": []}
 ```
 
@@ -96,18 +115,24 @@ The `/resolve` entry point has no Studio code, so it's safe to import in any fro
 ```ts
 import {resolveVariation, audienceMatches} from 'sanity-plugin-audience-variants/resolve'
 
-const reader = {region: 'emea', audience: 'owners'}
+// The same dimensions as the Studio config (only `name` is needed here)
+const dimensions = [{name: 'regions'}, {name: 'audiences'}]
 
-if (!audienceMatches(doc.audience, reader)) notFound()
+// One value per dimension, keyed by dimension name
+const reader = {regions: 'emea', audiences: 'owners'}
+
+if (!audienceMatches(doc.audience, reader, dimensions)) notFound()
 
 const body = doc.body.flatMap((block) =>
   block._type === 'audienceVariation'
-    ? (resolveVariation(block, reader)?.content ?? [])
+    ? (resolveVariation(block, reader, dimensions)?.content ?? [])
     : [block],
 )
 ```
 
-`resolveVariation` returns the first matching variant, or the default section.
+`resolveVariation` returns the first matching variant, or the default section. A
+variant matches only if the reader's value is picked in every dimension you pass, so
+pass all of them.
 
 ## Development
 

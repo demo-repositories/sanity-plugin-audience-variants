@@ -4,7 +4,7 @@ import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes'
 import {audienceVariants} from 'sanity-plugin-audience-variants'
 import {marriottContent} from './schemaTypes/marriottContent'
-import {audiences, regions} from './audienceConfig'
+import {dimensions} from './audienceConfig'
 
 export default defineConfig({
   name: 'default',
@@ -17,8 +17,7 @@ export default defineConfig({
     structureTool(),
     visionTool(),
     audienceVariants({
-      regions,
-      audiences,
+      dimensions,
       // What variant sections may contain, besides text. Sanity's `table`
       // stays top-level only until it's been tested inside variants.
       content: marriottContent,
