@@ -155,6 +155,19 @@ export class Studio {
     for (const key of keys) await this.page.keyboard.press(key)
   }
 
+  /**
+   * Undo, the way the editor sees it when a user presses Cmd+Z / Ctrl+Z.
+   *
+   * Don't use `press('ControlOrMeta+z')` for this. On macOS Playwright turns Meta+Z into
+   * Chromium's native "undo:" command instead of a keydown the editor handles. Native undo
+   * only reverses the browser's own DOM edits (typing), so plugin actions such as wrap,
+   * unwrap and remove look un-undoable in tests even though they undo fine by hand.
+   * Control+Z reaches the editor's own undo on every platform.
+   */
+  async undo() {
+    await this.page.keyboard.press('Control+z')
+  }
+
   // -------------------------------------------------------------------------
   // Plugin actions
 

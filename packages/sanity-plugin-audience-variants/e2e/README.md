@@ -127,8 +127,6 @@ from the test Studio's config.
 
 ## Known bugs the suite records
 
-- `undo.spec.ts`: Cmd+Z doesn't undo plugin actions (wrap, unwrap, removing a section).
-  It does undo typing.
 - `clipboard.spec.ts`: pasting body content that includes a whole variation into a
   section flattens it, and the pasted blocks come out in the wrong order.
 
