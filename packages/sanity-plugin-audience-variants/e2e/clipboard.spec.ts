@@ -76,16 +76,11 @@ test.describe('cut, copy and paste', () => {
     await article.expectBody([...seed(), ...seed()])
   })
 
+  // A variation can't nest, so pasting one into a section flattens it, in order.
   test('pasting copied body text that contains a variation into a section keeps the order', async ({
     studio,
     openArticle,
   }) => {
-    test.fail(
-      true,
-      'Known bug: the variation is flattened into the section, and the pasted blocks come out ' +
-        'rotated (D2, Outro, Intro, V1, V2, D1). Decide what should happen: flatten in order, ' +
-        'or refuse the paste.',
-    )
     const article = await openArticle(seed())
     await studio.select('Intro', 'Outro')
     await studio.press('ControlOrMeta+c')

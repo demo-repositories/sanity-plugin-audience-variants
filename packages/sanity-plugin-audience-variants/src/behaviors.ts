@@ -510,9 +510,41 @@ const repairVariations = (types: SectionTypes) =>
     ],
   })
 
+/**
+ * Before several blocks are inserted into a section (e.g. pasted), give a new
+ * key to any whose key is already in that section. The editor chains the
+ * inserts by key ("after the block I just inserted"), but only checks
+ * top-level keys for clashes. A clash inside a section gets re-keyed late,
+ * so the chain points at the original block and the paste comes out in the
+ * wrong order.
+ */
+const rekeyBlocksInsertedIntoSection = defineBehavior({
+  on: 'insert.blocks',
+  guard: ({snapshot, event}) => {
+    if (event.blocks.length < 2) return false
+    const path = (event.at ?? snapshot.context.selection)?.focus.path
+    if (!path || path.length < 4 || path[1] !== 'variants' || path[3] !== 'content') return false
+    const variation = findVariation(snapshot, (path[0] as Keyed)._key)
+    const section = variation?.variants?.find((s) => s._key === (path[2] as Keyed)._key)
+    if (!section) return false
+    const taken = new Set((section.content ?? []).map((b) => b._key))
+    let changed = false
+    const blocks = event.blocks.map((block) => {
+      const _key =
+        !block._key || taken.has(block._key) ? snapshot.context.keyGenerator() : block._key
+      if (_key !== block._key) changed = true
+      taken.add(_key)
+      return _key === block._key ? block : {...block, _key}
+    })
+    return changed ? {blocks} : false
+  },
+  actions: [({event}, {blocks}) => [raise({...event, blocks})]],
+})
+
 export function createAudienceVariantBehaviors(types: SectionTypes) {
   return [
     repairVariations(types),
+    rekeyBlocksInsertedIntoSection,
     wrapSelection(types),
     wrapOnShortcut,
     insertWrapsSelection(types),
