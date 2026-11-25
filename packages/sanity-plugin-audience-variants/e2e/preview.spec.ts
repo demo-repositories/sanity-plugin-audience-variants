@@ -72,4 +72,27 @@ test.describe('"Preview as"', () => {
       'Outro',
     ])
   })
+
+  test('works with the editor fullscreen', async ({studio, page, openArticle}) => {
+    await openArticle(seed())
+
+    await studio.caretIn('Intro')
+    await page.getByTestId('pt-editor').getByRole('button', {name: /expand editor/i}).click()
+
+    const fullscreen = page.locator('[data-testid="pt-editor"][data-fullscreen="true"]')
+    await expect(fullscreen).toBeVisible()
+
+    await studio.previewAs(REGION.emea, AUDIENCE.partners)
+    // Escape closed the picker but kept the editor fullscreen.
+    await expect(fullscreen).toBeVisible()
+
+    await expect(page.getByText('Read-only preview')).toBeVisible()
+    await expect(studio.block('EMEA partners')).toBeVisible()
+    await expect(studio.block('Everyone else')).toBeHidden()
+
+    await page.getByRole('button', {name: 'Back to editing'}).click()
+    await expect(studio.editor).toHaveAttribute('data-read-only', 'false')
+    await expect(studio.block('Everyone else')).toBeVisible()
+    await expect(fullscreen).toBeVisible()
+  })
 })

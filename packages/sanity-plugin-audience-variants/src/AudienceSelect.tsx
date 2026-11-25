@@ -39,9 +39,15 @@ export function AudienceSelect({
   useClickOutsideEvent(open && (() => setOpen(false)), () => [button, popover])
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    // Escape closes only the picker. Caught first (capture) and stopped, or
+    // Studio's own window listener also takes it and leaves fullscreen.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setOpen(false)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [open])
 
   const empty = !Object.values(selection).some((ids) => ids.length)

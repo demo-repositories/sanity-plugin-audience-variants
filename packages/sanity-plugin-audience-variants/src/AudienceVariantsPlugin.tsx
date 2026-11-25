@@ -3,11 +3,14 @@ import {BehaviorPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {EyeOpenIcon} from '@sanity/icons/EyeOpen'
 import {Button, Card, Flex, Text} from '@sanity/ui'
 import {useEffect, useMemo} from 'react'
+import {createPortal} from 'react-dom'
 import {createAudienceVariantBehaviors, hasStrayVariantMembers} from './behaviors'
 import {REPAIR_EVENT} from './constants'
 import {AudienceSelect, Muted} from './AudienceSelect'
 import {audienceVariantContainers} from './containers'
 import {useAudienceConfig} from './context'
+import {useFullscreenBarHost} from './fullscreen'
+import type {PreviewFilter} from './resolve'
 import {usePreviewAudience} from './previewAudience'
 
 /**
@@ -60,51 +63,66 @@ export function AudienceVariantsPlugin() {
     [sectionObjectTypes, dimensions],
   )
 
+  const fullscreenHost = useFullscreenBarHost(editor)
+  const bar = <PreviewBar value={previewAudience} onChange={setPreviewAudience} />
+
   return (
     <>
       <BehaviorPlugin behaviors={behaviors} />
       <NodePlugin nodes={audienceVariantContainers} />
-      <Card
-        padding={1}
-        radius={2}
-        tone={previewAudience ? 'caution' : 'default'}
-        style={{transition: 'background-color 120ms'}}
-      >
-        <Flex align="center" gap={2} wrap="wrap">
-          {previewAudience && (
-            <Flex align="center" gap={2}>
-              <Text size={1} style={{paddingLeft: 4}}>
-                Read-only preview
-              </Text>
-              <Button
-                fontSize={1}
-                padding={2}
-                mode="ghost"
-                text="Back to editing"
-                onClick={() => setPreviewAudience(null)}
-              />
-            </Flex>
-          )}
+      {/* In fullscreen the editor covers this spot, so the bar moves into it. */}
+      {fullscreenHost ? createPortal(bar, fullscreenHost) : bar}
+    </>
+  )
+}
 
-          <Flex align="center" gap={2} style={{marginLeft: 'auto'}}>
-            <Text size={1} muted>
-              <EyeOpenIcon />
+/** The "Preview as" switch, plus "Back to editing" while previewing. */
+function PreviewBar({
+  value,
+  onChange,
+}: {
+  value: PreviewFilter | null
+  onChange: (filter: PreviewFilter | null) => void
+}) {
+  return (
+    <Card
+      padding={1}
+      radius={2}
+      tone={value ? 'caution' : 'default'}
+      style={{transition: 'background-color 120ms'}}
+    >
+      <Flex align="center" gap={2} wrap="wrap">
+        {value && (
+          <Flex align="center" gap={2}>
+            <Text size={1} style={{paddingLeft: 4}}>
+              Read-only preview
             </Text>
-            <Text size={1} muted style={{whiteSpace: 'nowrap'}}>
-              Preview as
-            </Text>
-            <AudienceSelect
-              compact
-              aria-label="Preview as"
-              selection={previewAudience ?? {}}
-              onChange={(dimension, ids) =>
-                setPreviewAudience({...previewAudience, [dimension]: ids})
-              }
-              emptyLabel={<Muted>Choose who…</Muted>}
+            <Button
+              fontSize={1}
+              padding={2}
+              mode="ghost"
+              text="Back to editing"
+              onClick={() => onChange(null)}
             />
           </Flex>
+        )}
+
+        <Flex align="center" gap={2} style={{marginLeft: 'auto'}}>
+          <Text size={1} muted>
+            <EyeOpenIcon />
+          </Text>
+          <Text size={1} muted style={{whiteSpace: 'nowrap'}}>
+            Preview as
+          </Text>
+          <AudienceSelect
+            compact
+            aria-label="Preview as"
+            selection={value ?? {}}
+            onChange={(dimension, ids) => onChange({...value, [dimension]: ids})}
+            emptyLabel={<Muted>Choose who…</Muted>}
+          />
         </Flex>
-      </Card>
-    </>
+      </Flex>
+    </Card>
   )
 }
