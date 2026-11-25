@@ -142,6 +142,7 @@ resolves the package from source, so changes show up in `npm run dev` without a 
 ```sh
 npm run build      # build dist/ (also checks the package)
 npm run typecheck
+npm run e2e        # end-to-end tests in a real browser; see e2e/README.md
 ```
 
 ## Publishing

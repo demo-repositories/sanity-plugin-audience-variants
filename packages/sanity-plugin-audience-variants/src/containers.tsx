@@ -197,7 +197,11 @@ function VariationContainer({attributes, children, node, readOnly}: ContainerRen
   if (previewAudience) {
     const visible = previewSectionKeys(value, previewAudience, dimensions)
     return (
-      <div {...attributes} style={{display: visible.size ? undefined : 'none'}}>
+      <div
+        {...attributes}
+        data-audience-variation={value._key}
+        style={{display: visible.size ? undefined : 'none'}}
+      >
         <VariationActiveContext.Provider value={context}>
           {/* Grid, so the default's `order` keeps it last when several show. */}
           <Stack gap={visible.size > 1 ? 3 : 0}>{children}</Stack>
@@ -209,6 +213,7 @@ function VariationContainer({attributes, children, node, readOnly}: ContainerRen
   return (
     <div
       {...attributes}
+      data-audience-variation={value._key}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -249,7 +254,7 @@ function VariationActions({value}: {value: VariationValue}) {
   const variantCount = variantSections(value).length
 
   return (
-    <Box style={{marginLeft: 'auto'}}>
+    <Box style={{marginLeft: 'auto'}} data-testid="variation-actions">
       <Flex gap={1}>
         <TintButton
           icon={AddIcon}
@@ -400,6 +405,8 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
     return (
       <div
         {...attributes}
+        data-audience-section={isDefault ? 'default' : 'variant'}
+        data-section-key={section._key}
         style={{
           display: visible.has(section._key) ? undefined : 'none',
           order: isDefault ? 1 : 0,
@@ -432,6 +439,8 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
   return (
     <div
       {...attributes}
+      data-audience-section={isDefault ? 'default' : 'variant'}
+      data-section-key={section._key}
       style={{
         position: 'relative',
         // Older documents may store the default first; always show it last.
@@ -557,6 +566,7 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
           fontSize={1}
           padding={1}
           title="Section actions"
+          data-testid="section-menu"
         />
       }
       popover={{portal: true, placement: 'bottom-start'}}
@@ -696,6 +706,7 @@ function AudiencePicker({
         ref={setButton}
         type="button"
         title={`Change ${dimensionList}`}
+        data-testid="section-picker"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         onMouseEnter={() => setHover(true)}

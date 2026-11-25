@@ -520,3 +520,7 @@ See [`packages/sanity-plugin-audience-variants/README.md`](packages/sanity-plugi
 To run the test Studio, copy `studio/.env.example` to `studio/.env.local` and set your
 project ID and dataset. Then `npm run dev` at the repo root starts the Studio, which loads
 the plugin from source.
+
+End-to-end tests drive that Studio in a browser: `npm run e2e`. See
+[`packages/sanity-plugin-audience-variants/e2e/README.md`](packages/sanity-plugin-audience-variants/e2e/README.md)
+for setup and for adding cases from customer feedback.

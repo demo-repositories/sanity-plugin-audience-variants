@@ -1,9 +1,13 @@
 {
   "name": "audience-variants",
   "private": true,
-  "workspaces": ["packages/*", "studio"],
+  "workspaces": [
+    "packages/*",
+    "studio"
+  ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "npm run dev -w studio"
+    "dev": "npm run dev -w studio",
+    "e2e": "npm run e2e -w sanity-plugin-audience-variants --"
   }
 }
