@@ -6,7 +6,7 @@ import {type ReactNode, useEffect, useState} from 'react'
 import {AudienceChecklist} from './AudienceChecklist'
 import type {Selection} from './config'
 import {useAudienceConfig} from './context'
-import {audienceLabel} from './resolve'
+import {audienceLabel, audienceTitles} from './resolve'
 
 /**
  * A select-style button showing who's picked ("EMEA · Partners") that
@@ -56,6 +56,8 @@ export function AudienceSelect({
     <Popover
       open={open}
       portal
+      // Fit the space available; the checklist scrolls inside it.
+      constrainSize
       // Toolbar triggers sit at the right edge, so open leftwards from there.
       placement={compact ? 'bottom-end' : 'bottom-start'}
       ref={setPopover}
@@ -75,6 +77,8 @@ export function AudienceSelect({
         radius={2}
         padding={compact ? 2 : 3}
         aria-label={ariaLabel}
+        // The label may be a count ("12 regions"); hovering shows every pick.
+        title={empty ? undefined : audienceTitles(config, selection)}
         aria-expanded={open}
         aria-haspopup="dialog"
         disabled={readOnly}

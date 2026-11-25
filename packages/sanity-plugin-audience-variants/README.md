@@ -61,9 +61,14 @@ export default defineConfig({
 
 Each dimension's `name` is the field its picked ids are stored under, so it must be a
 valid field name (and not `content` or `variants`). Dimension order sets the order of
-the picker's groups and of labels like "EMEA · Partners". `allTitle` is the label
-when every value is picked (default "All <title>"); `shortTitle` is used in the compact
-label above each section.
+the picker's groups and of labels like "EMEA · Partners"; values are always shown
+alphabetically by `title`. `allTitle` is the label when every value is picked (default
+"All <title>"); `shortTitle` is used in the compact label above each section. Labels
+name up to three picks per dimension and count larger ones ("12 regions", or "All
+regions except Japan"); hovering a label lists every pick.
+
+Long lists are fine: once there are more than 10 values in all, the picker gets a search
+box, and it scrolls to fit the screen.
 
 Names and ids are stored in documents, so renaming them, or adding a dimension that
 existing variants don't have, means migrating content.

@@ -69,6 +69,8 @@ type Fixtures = {
       title?: string
       /** Edit the generated Portable Text before it's stored, e.g. to seed malformed data. */
       transform?: (body: ReturnType<typeof toPortableText>) => unknown[]
+      /** Open it in this test Studio workspace, e.g. `scale` (20 values per dimension). */
+      workspace?: string
     },
   ) => Promise<TestArticle>
   studio: Studio
@@ -102,7 +104,7 @@ export const test = base.extend<Fixtures>({
         },
         {visibility: 'sync'},
       )
-      await studio.open(id)
+      await studio.open(id, options?.workspace)
       return new TestArticle(id)
     })
 

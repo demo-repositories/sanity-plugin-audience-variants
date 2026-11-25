@@ -45,6 +45,7 @@ import {usePreviewAudience} from './previewAudience'
 import {
   allReaders,
   audienceLabel,
+  audienceTitles,
   getDefaultSection,
   isDefaultSection,
   overlappingReaders,
@@ -501,7 +502,7 @@ function SectionLabel({
   fallbackUnreachable: boolean
 }) {
   const config = useAudienceConfig()
-  const {dimensions, valueTitle, readerTitle} = config
+  const {dimensions, readerTitle} = config
   const style = {fontWeight: 500}
 
   if (isDefault) {
@@ -533,9 +534,7 @@ function SectionLabel({
 
   const title = overlaps.length
     ? `Also reached by another variant: ${overlaps.map(readerTitle).join(', ')}`
-    : picked
-        .map(({name}) => selection[name].map((id) => valueTitle(name, id)).join(', '))
-        .join(' · ')
+    : audienceTitles(config, selection)
 
   return (
     <Text
@@ -681,15 +680,11 @@ function AudiencePicker({
     <Popover
       open={open}
       portal
+      // Fit the space available; the checklist scrolls inside it.
+      constrainSize
       placement="bottom-start"
       ref={setPopover}
-      content={
-        <AudienceChecklist
-          selection={selection}
-          onChange={onChange}
-          takenBy={takenBy}
-        />
-      }
+      content={<AudienceChecklist selection={selection} onChange={onChange} takenBy={takenBy} />}
     >
       {/* A bare button: the label stays plain text on the tint, underlined on hover. */}
       <button

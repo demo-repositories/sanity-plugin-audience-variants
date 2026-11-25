@@ -15,8 +15,9 @@ export class Studio {
     this.editor = page.locator('[data-pt-editor="true"]')
   }
 
-  async open(id: string) {
-    await this.page.goto(`/structure/article;${id}`)
+  /** Open an article in a test Studio workspace (`default`, or `scale` for 20 values per dimension). */
+  async open(id: string, workspace = 'default') {
+    await this.page.goto(`/${workspace}/structure/article;${id}`)
     await expect(this.editor).toBeVisible({timeout: 30_000})
     // The editor is interactive once it's no longer read-only (loading).
     await expect(this.editor).toHaveAttribute('data-read-only', 'false', {timeout: 30_000})

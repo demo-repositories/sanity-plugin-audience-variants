@@ -42,6 +42,11 @@ The first time, install the browser with `npx playwright install chromium`.
   use that login. Otherwise (for example in CI), set `SANITY_E2E_TOKEN` to a token that
   can edit the dataset.
 
+The test Studio has two workspaces on the same dataset: `/default`, with three regions
+and three audiences (most tests), and `/scale`, with 20 of each, for how the pickers and
+labels cope with long lists (`scale.spec.ts`). `openArticle(body, {workspace: 'scale'})`
+opens an article in the second.
+
 Each test creates its own article (id `e2e-…`), opens it, and deletes it afterwards.
 Leftovers from an interrupted run are deleted at the start of the next. To keep them
 for debugging, set `E2E_KEEP_DOCS=1`.

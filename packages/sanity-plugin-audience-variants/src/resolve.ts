@@ -177,6 +177,23 @@ export function audienceMatches(
   })
 }
 
+/** Every picked value's full title, for a tooltip: "Japan, Korea · Customers". */
+export function audienceTitles(
+  {dimensions, valueTitle}: Pick<ResolvedAudienceConfig, 'dimensions' | 'valueTitle'>,
+  value: object | undefined,
+): string {
+  return dimensions
+    .map(({name, values}) => {
+      const ids = picksOf(value, name)
+      // Sorted like the picker; ids no longer in the config go last, raw.
+      const known = values.filter((v) => ids.includes(v.id))
+      const unknown = ids.filter((id) => !values.some((v) => v.id === id))
+      return [...known.map((v) => v.title), ...unknown.map((id) => valueTitle(name, id))].join(', ')
+    })
+    .filter(Boolean)
+    .join(' · ')
+}
+
 /** "EMEA, APAC · Partners", or "Default Audience" when nothing is picked. */
 export function audienceLabel(
   {dimensions, summarize}: Pick<ResolvedAudienceConfig, 'dimensions' | 'summarize'>,

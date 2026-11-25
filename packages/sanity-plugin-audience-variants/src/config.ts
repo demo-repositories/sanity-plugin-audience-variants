@@ -27,6 +27,7 @@ export type AudienceDimension = {
   title: string
   /** Label when every value is picked; defaults to "All <title>". */
   allTitle?: string
+  /** Shown sorted alphabetically by title, whatever order they're given in. */
   values: AudienceDimensionValue[]
 }
 
@@ -64,7 +65,10 @@ export type ResolvedAudienceConfig = {
   sectionObjectTypes: ReadonlySet<string>
   /** Full title of a value; unknown ids show raw. */
   valueTitle: (dimension: string, id: string) => string
-  /** Compact label for a selection: "All regions", or short titles joined. */
+  /**
+   * Compact label for a selection: short titles joined ("EMEA, APAC") for a
+   * few picks, else "All regions", "All regions except Japan" or "12 regions".
+   */
   summarize: (dimension: string, ids: string[]) => string
   /** "EMEA × Partners" */
   readerTitle: (reader: Reader) => string
@@ -95,6 +99,12 @@ function validate({dimensions}: AudienceVariantsConfig) {
   }
 }
 
+/** Selections with more picks than this are counted ("12 regions") instead of listed. */
+const MAX_NAMED_PICKS = 3
+
+const byTitle = (a: AudienceDimensionValue, b: AudienceDimensionValue) =>
+  a.title.localeCompare(b.title, undefined, {numeric: true, sensitivity: 'base'})
+
 /** "a", "a and b", "a, b and c" */
 function joinWords(words: string[]) {
   return words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words.at(-1)}` : words.join('')
@@ -102,7 +112,9 @@ function joinWords(words: string[]) {
 
 export function resolveAudienceConfig(config: AudienceVariantsConfig): ResolvedAudienceConfig {
   validate(config)
-  const {dimensions} = config
+  // Alphabetical, so long lists are easy to scan in the picker and labels
+  // don't depend on how the config happened to be written.
+  const dimensions = config.dimensions.map((d) => ({...d, values: [...d.values].sort(byTitle)}))
 
   const lookups = new Map(
     dimensions.map((dimension) => {
@@ -111,12 +123,17 @@ export function resolveAudienceConfig(config: AudienceVariantsConfig): ResolvedA
       // Unknown ids (removed from config) show raw so nothing is hidden.
       const title = (id: string) => byId.get(id)?.title ?? id
       const all = dimension.allTitle ?? `All ${dimension.title.toLowerCase()}`
+      const short = (v: AudienceDimensionValue) => v.shortTitle ?? v.title
       const summarize = (ids: string[]) => {
         if (values.length > 1 && values.every((v) => ids.includes(v.id))) return all
-        // Config order, so the label doesn't depend on click order.
-        const known = values.filter((v) => ids.includes(v.id)).map((v) => v.shortTitle ?? v.title)
+        // Sorted order, so the label doesn't depend on click order.
+        const known = values.filter((v) => ids.includes(v.id))
         const unknown = ids.filter((id) => !byId.has(id))
-        return [...known, ...unknown].join(', ')
+        const count = known.length + unknown.length
+        if (count <= MAX_NAMED_PICKS) return [...known.map(short), ...unknown].join(', ')
+        const missing = values.filter((v) => !ids.includes(v.id))
+        if (missing.length === 1 && !unknown.length) return `${all} except ${short(missing[0])}`
+        return `${count} ${dimension.title.toLowerCase()}`
       }
       return [dimension.name, {title, summarize}] as const
     }),
