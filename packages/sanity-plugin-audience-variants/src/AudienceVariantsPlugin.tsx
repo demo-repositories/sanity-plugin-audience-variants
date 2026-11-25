@@ -50,7 +50,7 @@ export function AudienceVariantsPlugin() {
   const [previewAudience, setPreviewAudience] = usePreviewAudience(editor)
   usePreviewReadOnly(editor, previewAudience !== null)
   useRepairVariations(editor)
-  const {sectionObjectTypes, dimensions, dimensionList} = useAudienceConfig()
+  const {sectionObjectTypes, dimensions} = useAudienceConfig()
   const behaviors = useMemo(
     () =>
       createAudienceVariantBehaviors({
@@ -101,7 +101,6 @@ export function AudienceVariantsPlugin() {
                 setPreviewAudience({...previewAudience, [dimension]: ids})
               }
               emptyLabel={<Muted>Choose who…</Muted>}
-              hint={`See what readers in any of these ${dimensionList} get. Leave a group empty to include all of it.`}
             />
           </Flex>
         </Flex>

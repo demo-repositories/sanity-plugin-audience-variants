@@ -36,7 +36,6 @@ export function AudienceInput(props: ObjectInputProps) {
           {DEFAULT_LABEL} <Muted>· everyone</Muted>
         </>
       }
-      hint="Leave a group empty to include all of it. Leave everything empty for the Default Audience: everyone."
     />
   )
 }

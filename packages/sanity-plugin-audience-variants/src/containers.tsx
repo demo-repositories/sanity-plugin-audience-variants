@@ -453,7 +453,6 @@ function SectionContainer({attributes, children, node, path, readOnly}: Containe
           {!readOnly && variation ? (
             <AudiencePicker
               sectionKey={section._key}
-              isDefault={isDefault}
               selection={selection}
               others={others}
               onChange={(field, ids) => {
@@ -630,14 +629,12 @@ function SectionMenu({variation, section}: {variation: VariationValue; section: 
 function AudiencePicker({
   children,
   sectionKey,
-  isDefault,
   selection,
   others,
   onChange,
 }: {
   children: ReactNode
   sectionKey: string
-  isDefault: boolean
   selection: Selection
   others: VariantSection[]
   onChange: (dimension: string, ids: string[]) => void
@@ -691,13 +688,6 @@ function AudiencePicker({
           selection={selection}
           onChange={onChange}
           takenBy={takenBy}
-          hint={
-            isDefault
-              ? `Pick ${dimensionList} to show this only to them. Readers no variant targets will see nothing here.`
-              : dimensions.length > 1
-                ? `Shown to readers who match a pick in each of ${dimensionList}.`
-                : `Shown to readers in any of these ${dimensionList}.`
-          }
         />
       }
     >
